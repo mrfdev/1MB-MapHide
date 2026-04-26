@@ -17,8 +17,6 @@ This build is compiled with Java 25 and targets the local Paper 26.1.2 API. The 
 | Paper 1.21.11 | `bluemap-5.16-paper.jar` |
 | Paper 26.1.2 | `bluemap-5.20-paper.jar` |
 
-BlueMap's web service is expected at `http://localhost:22442` when the test server is running.
-
 ## Configuration
 
 The Paper plugin name is `1MB-MapHide`, so the data folder is:
@@ -120,7 +118,7 @@ gradle --no-daemon build
 Jars are named like:
 
 ```text
-1MB-BlueMap-MapHide-v2.0.0-<build>-j25-26.1.2.jar
+1MB-BlueMap-MapHide-v2.0.0-017-j25-26.1.2.jar
 ```
 
 The plugin version is `2.0.0`. The three-digit build number is stored in `build-number.txt` and advances for every new jar build. The Java and Paper parts of the jar name are filename identifiers for your local target build, not the plugin version. After a successful `compileJava` or `build`, `deployServers` copies the jar into:
@@ -133,7 +131,7 @@ Before copying the new jar, the deploy task renames active `1MB-BlueMap-MapHide-
 ## Installation
 
 1. Stop the Paper server.
-2. Put `1MB-BlueMap-MapHide-v2.0.0-<build>-j25-26.1.2.jar` in `plugins/`.
+2. Put `1MB-BlueMap-MapHide-v2.0.0-017-j25-26.1.2.jar` in `plugins/`.
 3. Make sure BlueMap is also in `plugins/`.
 4. Remove or disable old `BlueMapPlayerControl-*.jar` copies.
 5. Start the server.
