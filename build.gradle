@@ -1,0 +1,141 @@
+plugins {
+	id "java"
+}
+
+group = "com.onemb"
+version = "2.0.0"
+
+ext.pluginVersion = "2.0.0"
+ext.javaTarget = 25
+ext.paperTarget = "26.1.2"
+
+def buildNumberFile = file("build-number.txt")
+def releaseBuildNumber = new java.util.concurrent.atomic.AtomicReference<String>()
+
+def serverDirs = [
+	file("servers/Paper-1.21.11"),
+	file("servers/Paper-26.1.2")
+]
+
+def localCompileJars = files(
+	"servers/Paper-26.1.2/libraries/io/papermc/paper/paper-api/26.1.2.build.42-alpha/paper-api-26.1.2.build.42-alpha.jar",
+	"servers/Paper-26.1.2/plugins/bluemap-5.20-paper.jar",
+	"servers/Paper-26.1.2/plugins/PlaceholderAPI-2.12.3-DEV-265.jar"
+) + fileTree("servers/Paper-26.1.2/libraries") {
+	include "**/*.jar"
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(javaTarget)
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = "UTF-8"
+	options.release = javaTarget
+	options.compilerArgs.add("-Xlint:deprecation")
+}
+
+tasks.register("prepareBuildNumber") {
+	group = "build"
+	description = "Advances the persistent three-digit build number for the next jar."
+	outputs.upToDateWhen { false }
+
+	doLast {
+		int lastBuildNumber = buildNumberFile.isFile() ? buildNumberFile.text.trim().toInteger() : 4
+		int nextBuildNumber = lastBuildNumber + 1
+		releaseBuildNumber.set(String.format("%03d", nextBuildNumber))
+		buildNumberFile.text = releaseBuildNumber.get() + System.lineSeparator()
+		logger.lifecycle("Using build number ${releaseBuildNumber.get()}")
+	}
+}
+
+def releaseVersion = providers.provider {
+	if (releaseBuildNumber.get() == null) {
+		throw new GradleException("Build number has not been prepared")
+	}
+	"${pluginVersion}-${releaseBuildNumber.get()}-j${javaTarget}-${paperTarget}"
+}
+
+dependencies {
+	compileOnly localCompileJars
+}
+
+tasks.processResources {
+	dependsOn(tasks.named("prepareBuildNumber"))
+	inputs.property("version", releaseVersion)
+	inputs.property("pluginVersion", pluginVersion)
+	inputs.property("javaTarget", javaTarget)
+	inputs.property("paperTarget", paperTarget)
+	filesMatching("plugin.yml") {
+		expand(version: pluginVersion)
+	}
+	filesMatching("build-info.properties") {
+		expand(
+				version: pluginVersion,
+				pluginVersion: pluginVersion,
+				buildNumber: releaseBuildNumber.get(),
+				javaTarget: javaTarget,
+				paperTarget: paperTarget
+		)
+	}
+}
+
+tasks.jar {
+	dependsOn(tasks.named("prepareBuildNumber"))
+	archiveFileName = providers.provider {
+		"1MB-BlueMap-MapHide-v${releaseVersion.get()}.jar"
+	}
+}
+
+tasks.register("deployServers") {
+	group = "build"
+	description = "Copies the built jar into both local Paper plugin folders and disables older active copies."
+	dependsOn(tasks.jar)
+
+	doLast {
+		File builtJar = tasks.jar.archiveFile.get().asFile
+		serverDirs.each { File serverDir ->
+			File pluginsDir = new File(serverDir, "plugins")
+			if (!pluginsDir.isDirectory()) {
+				logger.lifecycle("Skipping ${pluginsDir}: directory does not exist")
+				return
+			}
+
+			File[] oldJars = pluginsDir.listFiles({ File file ->
+				file.isFile()
+						&& file.name.endsWith(".jar")
+						&& (file.name.startsWith("1MB-BlueMap-MapHide-")
+								|| file.name.startsWith("1MB-MapHide-")
+								|| file.name.startsWith("BlueMapPlayerControl-"))
+			} as FileFilter) ?: []
+
+			oldJars.each { File oldJar ->
+				File disabled = new File(oldJar.parentFile, oldJar.name + ".disabled")
+				int suffix = 1
+				while (disabled.exists()) {
+					disabled = new File(oldJar.parentFile, oldJar.name + ".disabled." + suffix++)
+				}
+				if (!oldJar.renameTo(disabled)) {
+					throw new GradleException("Could not disable old jar: ${oldJar}")
+				}
+				logger.lifecycle("Disabled ${oldJar.name} in ${pluginsDir}")
+			}
+
+			copy {
+				from builtJar
+				into pluginsDir
+			}
+			logger.lifecycle("Deployed ${builtJar.name} to ${pluginsDir}")
+		}
+	}
+}
+
+tasks.named("build") {
+	finalizedBy(tasks.named("deployServers"))
+}
+
+tasks.named("compileJava") {
+	finalizedBy(tasks.named("deployServers"))
+}

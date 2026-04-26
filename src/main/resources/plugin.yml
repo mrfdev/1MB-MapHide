@@ -1,47 +1,62 @@
-name: BlueMapPlayerControl
-version: '${project.version}'
+name: 1MB-MapHide
+version: '${version}'
 main: com.technicjelle.bluemapplayercontrol.BlueMapPlayerControl
 folia-supported: true
-api-version: 1.13
+api-version: '1.21'
 depend:
   - BlueMap
-author: TechnicJelle
-description: Adds player hiding functionality to BlueMap
+softdepend:
+  - PlaceholderAPI
+authors:
+  - TechnicJelle
+  - mrfloris
+description: Adds player hiding functionality to BlueMap.
 website: https://github.com/TechnicJelle/BlueMapPlayerControl
 
 commands:
   bmpc:
-    usage: /<command> [hide | show] [player]
-    description: Toggles visibility on BlueMap
-    permission: bmpc
+    usage: /<command> [toggle|show|hide|status|config|reload]
+    description: BlueMap marker visibility command.
 
 permissions:
-  bmpc:
+  maphide.player:
     default: true
-  bmpc.*:
+    children:
+      maphide.player.toggle: true
+      maphide.player.show: true
+      maphide.player.hide: true
+  maphide.player.toggle:
+    default: true
+  maphide.player.show:
+    default: true
+  maphide.player.hide:
+    default: true
+  maphide.forcehide:
+    default: false
+  maphide.forceshow:
+    default: false
+  maphide.admin:
     default: op
     children:
-      bmpc.self:
-        default: true
-        children:
-          bmpc.self.toggle: true
-          bmpc.self.show: true
-          bmpc.self.hide: true
-      bmpc.others:
-        default: op
-        children:
-          bmpc.others.toggle: true
-          bmpc.others.show: true
-          bmpc.others.hide: true
-  bmpc.self.toggle:
-    default: true
-  bmpc.self.show:
-    default: true
-  bmpc.self.hide:
-    default: true
-  bmpc.others.toggle:
+      maphide.player: true
+      maphide.admin.toggle: true
+      maphide.admin.show: true
+      maphide.admin.hide: true
+      maphide.admin.status: true
+      maphide.admin.config: true
+      maphide.admin.set: true
+      maphide.admin.reload: true
+  maphide.admin.toggle:
     default: op
-  bmpc.others.show:
+  maphide.admin.show:
     default: op
-  bmpc.others.hide:
+  maphide.admin.hide:
+    default: op
+  maphide.admin.status:
+    default: op
+  maphide.admin.config:
+    default: op
+  maphide.admin.set:
+    default: op
+  maphide.admin.reload:
     default: op

@@ -1,40 +1,52 @@
 package com.technicjelle.bluemapplayercontrol;
 
-import com.technicjelle.UpdateChecker;
 import com.technicjelle.bluemapplayercontrol.commands.BMPC;
-import de.bluecolored.bluemap.api.BlueMapAPI;
-import org.bstats.bukkit.Metrics;
+import com.technicjelle.bluemapplayercontrol.placeholders.MapHideExpansion;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class BlueMapPlayerControl extends JavaPlugin {
-	UpdateChecker updateChecker;
-	BMPC executor;
+	private MapHideService service;
+	private BMPC executor;
+	private MapHideExpansion expansion;
 
 	@Override
 	public void onEnable() {
-		getLogger().info("BlueMapPlayerControl enabled");
+		getLogger().info("1MB-MapHide enabled");
 
-		new Metrics(this, 18378);
+		service = new MapHideService(this);
+		service.reload();
 
-		updateChecker = new UpdateChecker("TechnicJelle", "BlueMapPlayerControl", getDescription().getVersion());
-		updateChecker.checkAsync();
+		executor = new BMPC(service);
+		registerCommand("bmpc");
+		Bukkit.getPluginManager().registerEvents(executor, this);
 
-		BlueMapAPI.onEnable(api -> updateChecker.logUpdateMessage(getLogger()));
+		if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+			expansion = new MapHideExpansion(this, service);
+			expansion.register();
+			getLogger().info("PlaceholderAPI expansion registered");
+		}
+	}
 
-		PluginCommand bmpc = Bukkit.getPluginCommand("bmpc");
-		executor = new BMPC();
-		if(bmpc != null) {
-			bmpc.setExecutor(executor);
-			bmpc.setTabCompleter(executor);
+	private void registerCommand(String name) {
+		PluginCommand command = Bukkit.getPluginCommand(name);
+		if (command != null) {
+			command.setExecutor(executor);
+			command.setTabCompleter(executor);
 		} else {
-			getLogger().warning("bmpc is null. This is not good");
+			getLogger().warning("Command /" + name + " is not registered");
 		}
 	}
 
 	@Override
 	public void onDisable() {
-		getLogger().info("BlueMapPlayerControl disabled");
+		if (expansion != null) {
+			expansion.unregister();
+		}
+		if (service != null) {
+			service.cancelTimers();
+		}
+		getLogger().info("1MB-MapHide disabled");
 	}
 }

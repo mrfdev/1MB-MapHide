@@ -1,0 +1,61 @@
+# Translation language to load from the Translations folder.
+# Default: EN
+# Example: set this to FR and create Translations/Locale_FR.yml to use French messages.
+# Reload with /bmpc reload after changing this while the server is running.
+language: EN
+
+# 1MB Alias Helper
+# Alias command for the player self-toggle command.
+# Default: /map hide
+# When a player types /map hide, it runs the same logic as /bmpc toggle.
+# This is specific to the 1MoreBlock.com server setup. Set to "" to disable.
+bmpc-toggle-alias: "/map hide"
+
+# Starting BlueMap marker visibility for players when this plugin applies its join default.
+# Valid values: show, hide
+# Default: show
+# show = players appear on BlueMap until they run /map hide.
+# hide = players start hidden until they run /map hide.
+default-visibility: show
+
+# Controls when default-visibility is applied on join.
+# Default: true
+# true = only applies to players joining for the first time.
+# false = applies on every join, which can override a player's previous choice.
+apply-default-visibility-on-first-join-only: true
+
+# Automatically toggles the player again after they run /map hide.
+# Default: 0
+# 0 = disabled.
+# Any positive number = seconds to wait before toggling again.
+# If the player runs /map hide before the timer ends, the timer resets.
+toggle-back-after-seconds: 0
+
+# Optional permission-based overrides.
+# Default: disabled
+# When enabled, players with the configured permission nodes are forced visible or hidden,
+# regardless of /map hide or admin /bmpc commands.
+forced-permissions:
+  # Default: false
+  # false = players control their own marker unless an admin changes it.
+  # true = the hide-node and show-node permissions below are enforced.
+  enabled: false
+
+  # Permission that forcefully keeps a player hidden from BlueMap when enabled is true.
+  # Default: maphide.forcehide
+  hide-node: maphide.forcehide
+
+  # Permission that forcefully keeps a player visible on BlueMap when enabled is true.
+  # Default: maphide.forceshow
+  show-node: maphide.forceshow
+
+  # If a player somehow has both force permissions, this setting decides which wins.
+  # Valid values: hide, show
+  # Default: hide
+  conflict-priority: hide
+
+  # How often, in seconds, to re-check online players for force permissions.
+  # Default: 0
+  # 0 = disables the repeating check. Join events and commands still check force permissions.
+  # Only set this above 0 if another plugin or workflow keeps undoing forced visibility.
+  check-interval-seconds: 0

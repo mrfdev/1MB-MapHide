@@ -45,6 +45,7 @@ hs_err_pid*
 
 # General
 .DS_Store
+.ds_store
 .AppleDouble
 .LSOverride
 
@@ -111,3 +112,7 @@ buildNumber.properties
 
 # Common working directory
 run/
+.gradle/
+build/
+servers/
+build/libs/
