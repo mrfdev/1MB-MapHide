@@ -1,61 +1,71 @@
-# Translation language to load from the Translations folder.
-# Default: EN
-# Example: set this to FR and create Translations/Locale_FR.yml to use French messages.
-# Reload with /bmpc reload after changing this while the server is running.
+# Controls which translation file is loaded from the Translations folder.
+# Default: EN.
+# Format: language suffix only, such as EN or FR. The plugin loads Translations/Locale_<language>.yml.
+# Changing this while the server is running requires /bmpc reload or a server restart.
 language: EN
 
-# 1MB Alias Helper
-# Alias command for the player self-toggle command.
-# Default: /map hide
-# When a player types /map hide, it runs the same logic as /bmpc toggle.
-# This is specific to the 1MoreBlock.com server setup. Set to "" to disable.
+# 1MB Alias Helper: optional command alias for the player self-toggle command.
+# Default: /map hide.
+# Expected format: a command with a leading slash, such as /map hide. Set to "" to disable the alias.
+# When a player types this command, the plugin runs the same permission checks and logic as /bmpc toggle.
+# Changing this while the server is running requires /bmpc reload or a server restart.
 bmpc-toggle-alias: "/map hide"
 
-# Starting BlueMap marker visibility for players when this plugin applies its join default.
-# Valid values: show, hide
-# Default: show
-# show = players appear on BlueMap until they run /map hide.
-# hide = players start hidden until they run /map hide.
+# Controls the starting BlueMap marker visibility when this plugin applies its join default.
+# Default: show.
+# Safe values: show or hide.
+# show = players appear on BlueMap until they hide themselves. hide = players start hidden until they show themselves.
+# Changing this affects future joins after /bmpc reload or a server restart; it does not rewrite already-applied player states.
 default-visibility: show
 
-# Controls when default-visibility is applied on join.
-# Default: true
-# true = only applies to players joining for the first time.
-# false = applies on every join, which can override a player's previous choice.
+# Controls when default-visibility is applied on player join.
+# Default: true.
+# Safe values: true or false.
+# true = only apply the default to first-time joins. false = apply it on every join and possibly override a player's previous choice.
+# Changing this affects future joins after /bmpc reload or a server restart.
 apply-default-visibility-on-first-join-only: true
 
-# Automatically toggles the player again after they run /map hide.
-# Default: 0
-# 0 = disabled.
-# Any positive number = seconds to wait before toggling again.
-# If the player runs /map hide before the timer ends, the timer resets.
+# Automatically toggles a player again after they use /bmpc, /bmpc toggle, or the configured alias.
+# Default: 0.
+# Safe values: 0 or any positive whole number of seconds. Negative values are treated as 0 by the plugin.
+# 0 disables the timer. If a player toggles again before the timer ends, the timer is reset.
+# Changing this takes effect after /bmpc reload or a server restart and applies to new toggles only.
 toggle-back-after-seconds: 0
 
 # Optional permission-based overrides.
-# Default: disabled
-# When enabled, players with the configured permission nodes are forced visible or hidden,
-# regardless of /map hide or admin /bmpc commands.
+# Defaults: disabled, hide-node maphide.forcehide, show-node maphide.forceshow, conflict-priority hide, check interval 0.
+# When enabled, players with the configured permission nodes are forced visible or hidden regardless of /map hide or admin /bmpc commands.
+# Changing any value in this section requires /bmpc reload or a server restart.
 forced-permissions:
-  # Default: false
-  # false = players control their own marker unless an admin changes it.
-  # true = the hide-node and show-node permissions below are enforced.
+  # Enables permission-based forced visibility overrides.
+  # Default: false.
+  # Safe values: true or false.
+  # false = players and admins can change visibility normally. true = hide-node and show-node are enforced.
+  # Changing this requires /bmpc reload or a server restart. Commands and joins check the new value after reload.
   enabled: false
 
-  # Permission that forcefully keeps a player hidden from BlueMap when enabled is true.
-  # Default: maphide.forcehide
+  # Permission node that forcefully keeps a player hidden from BlueMap when forced-permissions.enabled is true.
+  # Default: maphide.forcehide.
+  # Expected format: a permission node string.
+  # Changing this requires /bmpc reload or a server restart.
   hide-node: maphide.forcehide
 
-  # Permission that forcefully keeps a player visible on BlueMap when enabled is true.
-  # Default: maphide.forceshow
+  # Permission node that forcefully keeps a player visible on BlueMap when forced-permissions.enabled is true.
+  # Default: maphide.forceshow.
+  # Expected format: a permission node string.
+  # Changing this requires /bmpc reload or a server restart.
   show-node: maphide.forceshow
 
-  # If a player somehow has both force permissions, this setting decides which wins.
-  # Valid values: hide, show
-  # Default: hide
+  # Decides which forced permission wins if a player has both hide-node and show-node.
+  # Default: hide.
+  # Safe values: hide or show.
+  # Changing this requires /bmpc reload or a server restart.
   conflict-priority: hide
 
-  # How often, in seconds, to re-check online players for force permissions.
-  # Default: 0
-  # 0 = disables the repeating check. Join events and commands still check force permissions.
+  # How often, in seconds, to re-check online players for force permissions while they remain online.
+  # Default: 0.
+  # Safe values: 0 or any positive whole number of seconds. Negative values are treated as 0 by the plugin.
+  # 0 disables the repeating check. Join events and commands still check force permissions.
   # Only set this above 0 if another plugin or workflow keeps undoing forced visibility.
+  # Changing this requires /bmpc reload or a server restart; reload cancels and recreates the repeating task.
   check-interval-seconds: 0

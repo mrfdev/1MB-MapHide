@@ -7,7 +7,6 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
@@ -32,6 +31,7 @@ public final class MapHideService {
 
 	private final BlueMapPlayerControl plugin;
 	private final MiniMessage miniMessage = MiniMessage.miniMessage();
+	private final MapHideConfig mapHideConfig;
 	private final Map<UUID, BukkitTask> toggleBackTasks = new HashMap<>();
 	private final Map<UUID, Long> toggleBackExpiresAt = new HashMap<>();
 	private BukkitTask forcedPermissionTask;
@@ -42,15 +42,15 @@ public final class MapHideService {
 
 	public MapHideService(BlueMapPlayerControl plugin) {
 		this.plugin = plugin;
+		this.mapHideConfig = new MapHideConfig(plugin);
 	}
 
 	public void reload() {
-		saveBundledResource("config.yml");
+		mapHideConfig.reload();
 		saveBundledResource("Translations/Locale_EN.yml");
-		plugin.reloadConfig();
 		loadBuildInfo();
 
-		language = plugin.getConfig().getString("language", DEFAULT_LANGUAGE).toUpperCase(Locale.ROOT);
+		language = config().getString("language", DEFAULT_LANGUAGE).toUpperCase(Locale.ROOT);
 		File translationFile = new File(plugin.getDataFolder(), "Translations/Locale_" + language + ".yml");
 		if (!translationFile.isFile()) {
 			language = DEFAULT_LANGUAGE;
@@ -276,13 +276,10 @@ public final class MapHideService {
 	}
 
 	public boolean setConfigValue(String key, String value) {
-		if (!config().contains(key)) {
+		Object parsedValue = parseConfigValue(value);
+		if (!mapHideConfig.setValue(key, parsedValue)) {
 			return false;
 		}
-
-		Object parsedValue = parseConfigValue(value);
-		config().set(key, parsedValue);
-		plugin.saveConfig();
 		reload();
 		return true;
 	}
@@ -299,20 +296,7 @@ public final class MapHideService {
 	}
 
 	public Map<String, Object> configValues() {
-		Map<String, Object> values = new HashMap<>();
-		flattenConfig("", config(), values);
-		return values;
-	}
-
-	private void flattenConfig(String prefix, ConfigurationSection section, Map<String, Object> values) {
-		for (String key : section.getKeys(false)) {
-			String path = prefix.isEmpty() ? key : prefix + "." + key;
-			if (section.isConfigurationSection(key)) {
-				flattenConfig(path, section.getConfigurationSection(key), values);
-			} else {
-				values.put(path, section.get(key));
-			}
-		}
+		return mapHideConfig.values();
 	}
 
 	public String placeholder(OfflinePlayer offlinePlayer, String identifier) {
@@ -438,7 +422,7 @@ public final class MapHideService {
 	}
 
 	private FileConfiguration config() {
-		return plugin.getConfig();
+		return mapHideConfig.config();
 	}
 
 	public enum VisibilityAction {
