@@ -387,8 +387,21 @@ public final class MapHideService {
 		return Math.max(0, config().getInt("toggle-back-after-seconds", 0));
 	}
 
+	public boolean forcedPermissionsEnabled() {
+		return config().getBoolean("forced-permissions.enabled", false);
+	}
+
+	public String conflictPriority() {
+		return config().getString("forced-permissions.conflict-priority", "hide");
+	}
+
 	public String language() {
 		return language;
+	}
+
+	public String toggleAliasLabel() {
+		String alias = config().getString("bmpc-toggle-alias", "/map hide");
+		return alias == null || alias.isBlank() ? "disabled" : alias.trim();
 	}
 
 	public String forceHidePermission() {

@@ -15,16 +15,22 @@ website: https://github.com/TechnicJelle/BlueMapPlayerControl
 
 commands:
   bmpc:
-    usage: /<command> [toggle|show|hide|status|config|reload]
+    usage: /<command> [help|info|toggle|show|hide|status|config|debug|reload]
     description: BlueMap marker visibility command.
 
 permissions:
   maphide.player:
     default: true
     children:
+      maphide.player.help: true
+      maphide.player.info: true
       maphide.player.toggle: true
       maphide.player.show: true
       maphide.player.hide: true
+  maphide.player.help:
+    default: true
+  maphide.player.info:
+    default: true
   maphide.player.toggle:
     default: true
   maphide.player.show:
@@ -46,6 +52,11 @@ permissions:
       maphide.admin.config: true
       maphide.admin.set: true
       maphide.admin.reload: true
+      maphide.admin.debug: true
+      maphide.admin.debug.status: true
+      maphide.admin.debug.commands: true
+      maphide.admin.debug.permissions: true
+      maphide.admin.debug.placeholders: true
   maphide.admin.toggle:
     default: op
   maphide.admin.show:
@@ -59,4 +70,19 @@ permissions:
   maphide.admin.set:
     default: op
   maphide.admin.reload:
+    default: op
+  maphide.admin.debug:
+    default: op
+    children:
+      maphide.admin.debug.status: true
+      maphide.admin.debug.commands: true
+      maphide.admin.debug.permissions: true
+      maphide.admin.debug.placeholders: true
+  maphide.admin.debug.status:
+    default: op
+  maphide.admin.debug.commands:
+    default: op
+  maphide.admin.debug.permissions:
+    default: op
+  maphide.admin.debug.placeholders:
     default: op
