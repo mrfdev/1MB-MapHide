@@ -132,7 +132,7 @@ gradle --no-daemon build
 Jars are named like:
 
 ```text
-1MB-BlueMap-MapHide-v2.0.0-023-j25-26.1.2.jar
+1MB-BlueMap-MapHide-v2.0.0-024-j25-26.1.2.jar
 ```
 
 The plugin version is `2.0.0`. The three-digit build number is stored in `build-number.txt` and advances for every new jar build. The Java and Paper parts of the jar name are filename identifiers for your local target build, not the plugin version. After a successful `compileJava` or `build`, `deployServers` copies the jar into:
@@ -145,7 +145,7 @@ Before copying the new jar, the deploy task renames active `1MB-BlueMap-MapHide-
 ## Installation
 
 1. Stop the Paper server.
-2. Put `1MB-BlueMap-MapHide-v2.0.0-023-j25-26.1.2.jar` in `plugins/`.
+2. Put `1MB-BlueMap-MapHide-v2.0.0-024-j25-26.1.2.jar` in `plugins/`.
 3. Make sure BlueMap is also in `plugins/`.
 4. Remove or disable old `BlueMapPlayerControl-*.jar` copies.
 5. Start the server.

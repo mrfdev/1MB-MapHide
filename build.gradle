@@ -14,7 +14,8 @@ def releaseBuildNumber = new java.util.concurrent.atomic.AtomicReference<String>
 
 def serverDirs = [
 	file("servers/Paper-1.21.11"),
-	file("servers/Paper-26.1.2")
+	file("servers/Paper-26.1.2"),
+	file("servers/Paper-26.2")
 ]
 
 def localCompileJars = files(
