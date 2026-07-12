@@ -27,11 +27,12 @@ import java.util.Set;
 
 public class BMPC implements CommandExecutor, TabCompleter, Listener {
 	private static final int PAGE_SIZE = 7;
+	private static final String DOCS_URL = "https://docs.1moreblock.com/custom-server-plugins/maphide/";
 	private static final List<String> SELECTORS = List.of("@a", "@p", "@r", "@s");
 	private static final List<CommandInfo> COMMAND_INFOS = List.of(
 			new CommandInfo("/bmpc", "Legacy self toggle.", "maphide.player, maphide.player.toggle", "maphide.player.toggle"),
 			new CommandInfo("/bmpc help [page]", "Shows paged command help.", "maphide.player, maphide.player.help", "maphide.player.help"),
-			new CommandInfo("/bmpc info", "Shows plugin info and current basic settings.", "maphide.player, maphide.player.info", "maphide.player.info"),
+			new CommandInfo("/bmpc info", "Shows plugin info, starting commands, version/build, and docs URL.", "maphide.player, maphide.player.info", "maphide.player.info"),
 			new CommandInfo("/bmpc toggle", "Toggles your own BlueMap visibility.", "maphide.player, maphide.player.toggle", "maphide.player.toggle"),
 			new CommandInfo("/bmpc show", "Shows your own BlueMap marker.", "maphide.player, maphide.player.show", "maphide.player.show"),
 			new CommandInfo("/bmpc hide", "Hides your own BlueMap marker.", "maphide.player, maphide.player.hide", "maphide.player.hide"),
@@ -172,6 +173,7 @@ public class BMPC implements CommandExecutor, TabCompleter, Listener {
 			return true;
 		}
 		service.send(sender, "info-header");
+		service.send(sender, "info-intro");
 		service.send(sender, "info-plugin", Map.of(
 				"plugin_version", service.buildInfo("pluginVersion", service.buildInfo("version", "unknown")),
 				"build_number", service.buildInfo("buildNumber", "unknown"),
@@ -186,6 +188,7 @@ public class BMPC implements CommandExecutor, TabCompleter, Listener {
 				"forced", Boolean.toString(service.forcedPermissionsEnabled())
 		));
 		service.send(sender, "info-help");
+		service.send(sender, "info-docs", Map.of("docs_url", DOCS_URL));
 		return true;
 	}
 

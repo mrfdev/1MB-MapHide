@@ -92,7 +92,7 @@ tasks.jar {
 
 tasks.register("deployServers") {
 	group = "build"
-	description = "Copies the built jar into both local Paper plugin folders and disables older active copies."
+	description = "Copies the built jar into configured local Paper plugin folders and disables older active copies."
 	dependsOn(tasks.jar)
 
 	doLast {

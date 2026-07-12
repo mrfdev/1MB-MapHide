@@ -11,7 +11,7 @@ authors:
   - TechnicJelle
   - mrfloris
 description: Adds player hiding functionality to BlueMap.
-website: https://github.com/TechnicJelle/BlueMapPlayerControl
+website: https://docs.1moreblock.com/custom-server-plugins/maphide/
 
 commands:
   bmpc:

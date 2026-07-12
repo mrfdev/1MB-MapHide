@@ -1,0 +1,12 @@
+id: maphide
+name: 1MB-MapHide
+category: custom-server-plugin
+summary: Lets players control whether their live BlueMap marker is visible.
+main_command: /bmpc
+docs_url: https://docs.1moreblock.com/custom-server-plugins/maphide/
+player_guide: player-guide.md
+technical_readme: ../README.md
+java_target: 25
+paper_target: 26.1.2
+official_project: true
+repository: mrfdev/1MB-MapHide
