@@ -21,19 +21,19 @@ https://docs.1moreblock.com/custom-server-plugins/maphide/
 
 ## Changelog Summary
 
-Version `2.0.0` modernizes the original BlueMapPlayerControl addon into 1MB-MapHide for Paper 1.21.11 and 26.1.2. It moves the project to Gradle and Java 25, keeps `/bmpc` as the main legacy-compatible command, adds configurable `/map hide` alias support, replaces legacy color codes with MiniMessage translations, introduces `plugins/1MB-MapHide/config.yml` and `Translations/Locale_EN.yml`, adds a comment-preserving config loader, adds the `maphide.*` permission model, supports forced visibility permissions, optional timed self-toggle behavior, default join visibility, paged help/info/debug commands, admin config/status commands, server and player diagnostics through `/bmpc status` and `/bmpc debug status`, PlaceholderAPI placeholders, fallback translation keys for older locale files, and automatic local test-server deployment with build-numbered jars.
+Version `2.0.0` modernizes the original BlueMapPlayerControl addon into 1MB-MapHide for Paper 1.21.11, 26.1.2, and 26.2. It moves the project to Gradle and Java 25, keeps `/bmpc` as the main legacy-compatible command, adds configurable `/map hide` alias support, replaces legacy color codes with MiniMessage translations, introduces `plugins/1MB-MapHide/config.yml` and `Translations/Locale_EN.yml`, adds a comment-preserving config loader, adds the `maphide.*` permission model, supports forced visibility permissions, optional timed self-toggle behavior, default join visibility, paged help/info/debug commands, admin config/status commands, server and player diagnostics through `/bmpc status` and `/bmpc debug status`, PlaceholderAPI placeholders, fallback translation keys for older locale files, and automatic local test-server deployment with build-numbered jars.
 
 ## Supported Servers
 
-This build is compiled with Java 25 and targets the local Paper 26.1.2 API. The current code path uses BlueMap API calls present in the local test setups:
+This build is compiled with Java 25 and targets the local Paper 26.2 API. The current code path uses BlueMap API calls present in the local test setups:
 
 | Server | BlueMap plugin |
 | --- | --- |
 | Paper 1.21.11 | `bluemap-5.16-paper.jar` |
 | Paper 26.1.2 | `bluemap-5.20-paper.jar` |
-| Paper 26.2 | `bluemap-5.20-paper.jar` |
+| Paper 26.2 | `bluemap-5.22-paper.jar` |
 
-Paper 26.1.2 remains the main target. Paper 26.2 is an experimental compatibility test target for the current 26.1.2-built jar.
+Paper 26.2 is the main target. Paper 26.1.2 and 1.21.11 remain compatibility-tested local servers for this code path.
 
 ## Configuration
 
@@ -139,7 +139,7 @@ Requirements:
 
 - Gradle 9 or newer
 - Java 25
-- The local `servers/Paper-26.1.2` folder with Paper's downloaded `libraries/` tree, `plugins/bluemap-5.20-paper.jar`, and optional `plugins/PlaceholderAPI-2.12.3-DEV-265.jar`
+- The local `servers/Paper-26.2` folder with Paper's downloaded `libraries/` tree, `plugins/bluemap-5.22-paper.jar`, and optional `plugins/PlaceholderAPI-2.12.3.jar`
 
 Build and deploy to the configured local test servers:
 
@@ -150,7 +150,7 @@ gradle --no-daemon build
 Jars are named like:
 
 ```text
-1MB-BlueMap-MapHide-v2.0.0-025-j25-26.1.2.jar
+1MB-BlueMap-MapHide-v2.0.0-027-j25-26.2.jar
 ```
 
 The plugin version is `2.0.0`. The three-digit build number is stored in `build-number.txt` and advances for every new jar build. The Java and Paper parts of the jar name are filename identifiers for your local target build, not the plugin version. After a successful `compileJava` or `build`, `deployServers` copies the jar into:
@@ -164,7 +164,7 @@ Before copying the new jar, the deploy task renames active `1MB-BlueMap-MapHide-
 ## Installation
 
 1. Stop the Paper server.
-2. Put `1MB-BlueMap-MapHide-v2.0.0-025-j25-26.1.2.jar` in `plugins/`.
+2. Put `1MB-BlueMap-MapHide-v2.0.0-027-j25-26.2.jar` in `plugins/`.
 3. Make sure BlueMap is also in `plugins/`.
 4. Remove or disable old `BlueMapPlayerControl-*.jar` copies.
 5. Start the server.

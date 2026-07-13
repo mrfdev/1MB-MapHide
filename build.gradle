@@ -7,7 +7,7 @@ version = "2.0.0"
 
 ext.pluginVersion = "2.0.0"
 ext.javaTarget = 25
-ext.paperTarget = "26.1.2"
+ext.paperTarget = "26.2"
 
 def buildNumberFile = file("build-number.txt")
 def releaseBuildNumber = new java.util.concurrent.atomic.AtomicReference<String>()
@@ -19,11 +19,12 @@ def serverDirs = [
 ]
 
 def localCompileJars = files(
-	"servers/Paper-26.1.2/libraries/io/papermc/paper/paper-api/26.1.2.build.42-alpha/paper-api-26.1.2.build.42-alpha.jar",
-	"servers/Paper-26.1.2/plugins/bluemap-5.20-paper.jar",
-	"servers/Paper-26.1.2/plugins/PlaceholderAPI-2.12.3-DEV-265.jar"
-) + fileTree("servers/Paper-26.1.2/libraries") {
+	"servers/Paper-26.2/libraries/io/papermc/paper/paper-api/26.2.build.24-alpha/paper-api-26.2.build.24-alpha.jar",
+	"servers/Paper-26.2/plugins/bluemap-5.22-paper.jar",
+	"servers/Paper-26.2/plugins/PlaceholderAPI-2.12.3.jar"
+) + fileTree("servers/Paper-26.2/libraries") {
 	include "**/*.jar"
+	exclude "io/papermc/paper/paper-api/**"
 }
 
 java {

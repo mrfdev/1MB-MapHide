@@ -4,7 +4,7 @@
 
 - Paper server with BlueMap installed.
 - Java 25 for this build.
-- Paper 26.1.2 is the compile target.
+- Paper 26.2 is the compile target.
 - Paper 1.21.11, 26.1.2, and 26.2 have local compatibility test coverage for this code line.
 - PlaceholderAPI is optional.
 
@@ -52,10 +52,10 @@ gradle --no-daemon build
 The jar name follows this pattern:
 
 ```text
-1MB-BlueMap-MapHide-v2.0.0-<build>-j25-26.1.2.jar
+1MB-BlueMap-MapHide-v2.0.0-<build>-j25-26.2.jar
 ```
 
-`2.0.0` is the plugin version. The three-digit build number is stored in `build-number.txt` and advances for each new build. The `j25` and `26.1.2` parts identify the local Java and Paper target used for the build.
+`2.0.0` is the plugin version. The three-digit build number is stored in `build-number.txt` and advances for each new build. The `j25` and `26.2` parts identify the local Java and Paper target used for the build.
 
 The Gradle deploy task copies the jar into local ignored test-server plugin folders and appends `.disabled` to older active MapHide jars.
 

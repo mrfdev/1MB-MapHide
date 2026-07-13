@@ -30,12 +30,12 @@ The default `/map hide` alias is handled by MapHide itself and runs the same per
 
 ## Compatibility Notes
 
-The project is compiled for Java 25 and Paper 26.1.2. The current jar has been smoke-tested locally on:
+The project is compiled for Java 25 and Paper 26.2. The current jar has been smoke-tested locally on:
 
 | Server | BlueMap | Result |
 | --- | --- | --- |
 | Paper 1.21.11 | BlueMap 5.16 | Compatible in local testing. |
-| Paper 26.1.2 | BlueMap 5.20 | Primary target. |
-| Paper 26.2 | BlueMap 5.20 | Experimental compatibility passed local smoke testing. |
+| Paper 26.1.2 | BlueMap 5.20 | Compatibility-tested older target. |
+| Paper 26.2 | BlueMap 5.22 | Primary target. |
 
-Paper 26.2 is treated as compatibility testing only until the project target is intentionally moved.
+Paper 26.2 is the main Paper API target for current builds.
