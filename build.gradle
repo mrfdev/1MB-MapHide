@@ -3,29 +3,27 @@ plugins {
 }
 
 group = "com.onemb"
-version = "2.0.0"
 
-ext.pluginVersion = "2.0.0"
-ext.javaTarget = 25
-ext.paperTarget = "26.2"
+def pluginVersion = providers.gradleProperty("pluginVersion").get()
+def javaTarget = providers.gradleProperty("javaTarget").get().toInteger()
+def paperTarget = providers.gradleProperty("paperTarget").get()
+def paperApiVersion = providers.gradleProperty("paperApiVersion").get()
+def paperBuild = providers.gradleProperty("paperBuild").get().toInteger()
+def paperChannel = providers.gradleProperty("paperChannel").get().toUpperCase()
+version = pluginVersion
 
 def buildNumberFile = file("build-number.txt")
 def releaseBuildNumber = new java.util.concurrent.atomic.AtomicReference<String>()
+def pinnedBuildNumber = providers.gradleProperty("releaseBuildNumber")
 
-def serverDirs = [
-	file("servers/Paper-1.21.11"),
-	file("servers/Paper-26.1.2"),
+def maintainedServerDirs = [
 	file("servers/Paper-26.2")
 ]
 
 def localCompileJars = files(
-	"servers/Paper-26.2/libraries/io/papermc/paper/paper-api/26.2.build.24-alpha/paper-api-26.2.build.24-alpha.jar",
 	"servers/Paper-26.2/plugins/bluemap-5.22-paper.jar",
 	"servers/Paper-26.2/plugins/PlaceholderAPI-2.12.3.jar"
-) + fileTree("servers/Paper-26.2/libraries") {
-	include "**/*.jar"
-	exclude "io/papermc/paper/paper-api/**"
-}
+)
 
 java {
 	toolchain {
@@ -41,14 +39,37 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.register("prepareBuildNumber") {
 	group = "build"
-	description = "Advances the persistent three-digit build number for the next jar."
+	description = "Advances the persistent build number, or reuses -PreleaseBuildNumber for repeatable release builds."
 	outputs.upToDateWhen { false }
 
 	doLast {
-		int lastBuildNumber = buildNumberFile.isFile() ? buildNumberFile.text.trim().toInteger() : 4
-		int nextBuildNumber = lastBuildNumber + 1
+		int currentBuildNumber = buildNumberFile.isFile() ? buildNumberFile.text.trim().toInteger() : 4
+		int nextBuildNumber
+
+		if (pinnedBuildNumber.isPresent()) {
+			String requested = pinnedBuildNumber.get()
+			if (!(requested ==~ /\d{3}/)) {
+				throw new GradleException("releaseBuildNumber must be exactly three digits")
+			}
+			nextBuildNumber = requested.toInteger()
+			if (nextBuildNumber < currentBuildNumber) {
+				throw new GradleException("releaseBuildNumber ${requested} is older than current build ${currentBuildNumber}")
+			}
+			if (nextBuildNumber > currentBuildNumber + 1) {
+				throw new GradleException("releaseBuildNumber may advance by at most one")
+			}
+		} else {
+			nextBuildNumber = currentBuildNumber + 1
+		}
+
+		if (nextBuildNumber > 999) {
+			throw new GradleException("Build number exceeds the three-digit release format")
+		}
+
 		releaseBuildNumber.set(String.format("%03d", nextBuildNumber))
-		buildNumberFile.text = releaseBuildNumber.get() + System.lineSeparator()
+		if (nextBuildNumber != currentBuildNumber) {
+			buildNumberFile.text = releaseBuildNumber.get() + System.lineSeparator()
+		}
 		logger.lifecycle("Using build number ${releaseBuildNumber.get()}")
 	}
 }
@@ -61,6 +82,7 @@ def releaseVersion = providers.provider {
 }
 
 dependencies {
+	compileOnly "io.papermc.paper:paper-api:${paperApiVersion}"
 	compileOnly localCompileJars
 }
 
@@ -70,8 +92,14 @@ tasks.processResources {
 	inputs.property("pluginVersion", pluginVersion)
 	inputs.property("javaTarget", javaTarget)
 	inputs.property("paperTarget", paperTarget)
+	inputs.property("paperApiVersion", paperApiVersion)
+	inputs.property("paperBuild", paperBuild)
+	inputs.property("paperChannel", paperChannel)
 	filesMatching("plugin.yml") {
-		expand(version: pluginVersion)
+		expand(
+				version: pluginVersion,
+				paperTarget: paperTarget
+		)
 	}
 	filesMatching("build-info.properties") {
 		expand(
@@ -79,7 +107,10 @@ tasks.processResources {
 				pluginVersion: pluginVersion,
 				buildNumber: releaseBuildNumber.get(),
 				javaTarget: javaTarget,
-				paperTarget: paperTarget
+				paperTarget: paperTarget,
+				paperApiVersion: paperApiVersion,
+				paperBuild: paperBuild,
+				paperChannel: paperChannel
 		)
 	}
 }
@@ -91,14 +122,193 @@ tasks.jar {
 	}
 }
 
+tasks.register("verifyReleaseMetadata") {
+	group = "verification"
+	description = "Fails when release metadata, documentation, or target declarations drift."
+	dependsOn(tasks.named("prepareBuildNumber"))
+
+	doLast {
+		String buildNumber = releaseBuildNumber.get()
+		String expectedPaperApi = "${paperTarget}.build.${paperBuild}-${paperChannel.toLowerCase()}"
+		String expectedJar = "1MB-BlueMap-MapHide-v${pluginVersion}-${buildNumber}-j${javaTarget}-${paperTarget}.jar"
+
+		if (!(pluginVersion ==~ /\d+\.\d+\.\d+/)) {
+			throw new GradleException("pluginVersion must use semantic x.y.z format")
+		}
+		if (!(buildNumber ==~ /\d{3}/)) {
+			throw new GradleException("build number must use exactly three digits")
+		}
+		if (paperApiVersion != expectedPaperApi) {
+			throw new GradleException("paperApiVersion ${paperApiVersion} does not match ${expectedPaperApi}")
+		}
+		if (paperChannel != "STABLE") {
+			throw new GradleException("Paper release channel must be STABLE")
+		}
+
+		File readme = file("README.md")
+		File installation = file("docs/installation.md")
+		File integrations = file("docs/integrations.md")
+		File docsMetadata = file("docs/plugin-docs.yml")
+		File pluginMetadata = file("src/main/resources/plugin.yml")
+		File buildInfoTemplate = file("src/main/resources/build-info.properties")
+		String documentation = ([readme, installation, integrations] + fileTree("docs") {
+			include "*.md"
+		}).unique().collect { it.text }.join(System.lineSeparator())
+
+		[
+				(readme): [
+						"Version `${pluginVersion}`",
+						expectedJar,
+						"`io.papermc.paper:paper-api:${paperApiVersion}`"
+				],
+				(installation): [
+						"1MB-BlueMap-MapHide-v${pluginVersion}-<build>-j${javaTarget}-${paperTarget}.jar",
+						"`io.papermc.paper:paper-api:${paperApiVersion}`"
+				],
+				(integrations): [
+						"Paper ${paperTarget}",
+						"build ${paperBuild} ${paperChannel.toLowerCase()}"
+				],
+				(docsMetadata): [
+						"java_target: ${javaTarget}",
+						"paper_target: ${paperTarget}"
+				],
+				(pluginMetadata): [
+						"version: '\${version}'",
+						"api-version: '\${paperTarget}'"
+				],
+				(buildInfoTemplate): [
+						"paperApiVersion=\${paperApiVersion}",
+						"paperBuild=\${paperBuild}",
+						"paperChannel=\${paperChannel}"
+				]
+		].each { File target, List<String> expectedValues ->
+			expectedValues.each { String expectedValue ->
+				if (!target.text.contains(expectedValue)) {
+					throw new GradleException("${target} is missing release metadata: ${expectedValue}")
+				}
+			}
+		}
+
+		def jarMatcher = documentation =~ /1MB-BlueMap-MapHide-v(\d+\.\d+\.\d+)-(\d{3})-j(\d+)-([0-9.]+)\.jar/
+		while (jarMatcher.find()) {
+			if (jarMatcher.group(0) != expectedJar) {
+				throw new GradleException("Stale documented jar name: ${jarMatcher.group(0)}; expected ${expectedJar}")
+			}
+		}
+
+		def releaseMatcher = documentation =~ /Version `(\d+\.\d+\.\d+)`/
+		while (releaseMatcher.find()) {
+			if (releaseMatcher.group(1) != pluginVersion) {
+				throw new GradleException("Stale documented semantic version: ${releaseMatcher.group(1)}")
+			}
+		}
+	}
+}
+
+tasks.register("verifyArtifactMetadata") {
+	group = "verification"
+	description = "Checks generated plugin metadata and Java bytecode in the release jar."
+	dependsOn(tasks.jar)
+
+	doLast {
+		String buildNumber = releaseBuildNumber.get()
+		File artifact = tasks.jar.archiveFile.get().asFile
+		String expectedName = "1MB-BlueMap-MapHide-v${pluginVersion}-${buildNumber}-j${javaTarget}-${paperTarget}.jar"
+		if (artifact.name != expectedName) {
+			throw new GradleException("Unexpected artifact name ${artifact.name}; expected ${expectedName}")
+		}
+
+		def zip = new java.util.zip.ZipFile(artifact)
+		try {
+			Properties buildInfo = new Properties()
+			buildInfo.load(zip.getInputStream(zip.getEntry("build-info.properties")))
+			[
+					version: pluginVersion,
+					pluginVersion: pluginVersion,
+					buildNumber: buildNumber,
+					javaTarget: javaTarget.toString(),
+					paperTarget: paperTarget,
+					paperApiVersion: paperApiVersion,
+					paperBuild: paperBuild.toString(),
+					paperChannel: paperChannel
+			].each { String key, String expectedValue ->
+				if (buildInfo.getProperty(key) != expectedValue) {
+					throw new GradleException("Artifact ${key}=${buildInfo.getProperty(key)}; expected ${expectedValue}")
+				}
+			}
+
+			String pluginYml = zip.getInputStream(zip.getEntry("plugin.yml")).getText("UTF-8")
+			if (!pluginYml.contains("version: '${pluginVersion}'")
+					|| !pluginYml.contains("api-version: '${paperTarget}'")) {
+				throw new GradleException("Generated plugin.yml metadata is stale")
+			}
+
+			byte[] mainClass = zip.getInputStream(zip.getEntry(
+					"com/technicjelle/bluemapplayercontrol/BlueMapPlayerControl.class"
+			)).readAllBytes()
+			int classMajorVersion = ((mainClass[6] & 0xff) << 8) | (mainClass[7] & 0xff)
+			int expectedClassMajorVersion = 44 + javaTarget
+			if (classMajorVersion != expectedClassMajorVersion) {
+				throw new GradleException(
+						"Artifact class version ${classMajorVersion}; expected Java ${javaTarget} (${expectedClassMajorVersion})"
+				)
+			}
+		} finally {
+			zip.close()
+		}
+	}
+}
+
+tasks.register("verifyLocalPaperServer") {
+	group = "verification"
+	description = "Checks the maintained local PaperScript config, Paper build, and saved SHA-256."
+
+	doLast {
+		File serverDir = maintainedServerDirs.first()
+		File configFile = new File(serverDir, "paperscript/config.json")
+		File stateFile = new File(serverDir, "paperscript/state.json")
+		if (!configFile.isFile() || !stateFile.isFile()) {
+			logger.lifecycle("Skipping local Paper server verification: PaperScript state is not present")
+			return
+		}
+
+		def parser = new groovy.json.JsonSlurper()
+		Map config = parser.parse(configFile) as Map
+		Map state = parser.parse(stateFile) as Map
+		if (config.default_channel?.toString()?.toUpperCase() != "STABLE"
+				|| config.check_latest_channel_only?.toString()?.toUpperCase() != "STABLE"
+				|| config.allow_same_version_build_upgrade != true
+				|| config.download_filename_pattern != "Paper-{version}.jar") {
+			throw new GradleException("Maintained PaperScript config does not match the stable release policy")
+		}
+		if (state.current_version != paperTarget || state.current_build.toString().toInteger() != paperBuild) {
+			throw new GradleException("Maintained Paper server is not ${paperTarget} build ${paperBuild}")
+		}
+
+		File paperJar = new File(serverDir, state.current_jar.toString())
+		if (!paperJar.isFile()) {
+			throw new GradleException("Maintained Paper jar is missing: ${paperJar}")
+		}
+		String actualSha256 = java.security.MessageDigest.getInstance("SHA-256")
+				.digest(paperJar.bytes)
+				.collect { String.format("%02x", it & 0xff) }
+				.join()
+		if (actualSha256 != state.current_sha256 || actualSha256 != state.expected_sha256) {
+			throw new GradleException("Maintained Paper jar SHA-256 does not match PaperScript state")
+		}
+		logger.lifecycle("Verified Paper ${paperTarget} build ${paperBuild} ${paperChannel}: ${paperJar}")
+	}
+}
+
 tasks.register("deployServers") {
 	group = "build"
-	description = "Copies the built jar into configured local Paper plugin folders and disables older active copies."
+	description = "Copies the built jar into the maintained Paper 26.2 plugins folder and disables older active copies."
 	dependsOn(tasks.jar)
 
 	doLast {
 		File builtJar = tasks.jar.archiveFile.get().asFile
-		serverDirs.each { File serverDir ->
+		maintainedServerDirs.each { File serverDir ->
 			File pluginsDir = new File(serverDir, "plugins")
 			if (!pluginsDir.isDirectory()) {
 				logger.lifecycle("Skipping ${pluginsDir}: directory does not exist")
@@ -134,10 +344,15 @@ tasks.register("deployServers") {
 	}
 }
 
-tasks.named("build") {
-	finalizedBy(tasks.named("deployServers"))
+tasks.named("check") {
+	dependsOn(tasks.named("verifyReleaseMetadata"))
+	dependsOn(tasks.named("verifyArtifactMetadata"))
 }
 
-tasks.named("compileJava") {
-	finalizedBy(tasks.named("deployServers"))
+tasks.named("deployServers") {
+	mustRunAfter(tasks.named("check"))
+}
+
+tasks.named("build") {
+	dependsOn(tasks.named("deployServers"))
 }

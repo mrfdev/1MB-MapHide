@@ -3,10 +3,12 @@
 ## Requirements
 
 - Paper server with BlueMap installed.
-- Java 25 for this build.
-- Paper 26.2 is the compile target.
-- Paper 1.21.11, 26.1.2, and 26.2 have local compatibility test coverage for this code line.
+- Java 25 bytecode, built with JDK 25.0.4.
+- Paper 26.2 build 84 stable is the maintained compile and release-test target.
+- The exact compile coordinate is `io.papermc.paper:paper-api:26.2.build.84-stable`.
 - PlaceholderAPI is optional.
+
+This release declares `api-version: 26.2` and is not intended for older Paper versions.
 
 ## Runtime Dependencies
 
@@ -46,18 +48,21 @@ Existing `config.yml` values are preserved. Missing defaults and managed comment
 The normal local build command is:
 
 ```sh
-gradle --no-daemon build
+JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-25.0.4.jdk/Contents/Home \
+  gradle --no-daemon -PreleaseBuildNumber=028 clean build
 ```
 
 The jar name follows this pattern:
 
 ```text
-1MB-BlueMap-MapHide-v2.0.0-<build>-j25-26.2.jar
+1MB-BlueMap-MapHide-v2.0.1-<build>-j25-26.2.jar
 ```
 
-`2.0.0` is the plugin version. The three-digit build number is stored in `build-number.txt` and advances for each new build. The `j25` and `26.2` parts identify the local Java and Paper target used for the build.
+`2.0.1` is the plugin version. The three-digit build number is stored in `build-number.txt`. An unpinned artifact build advances it once; `-PreleaseBuildNumber=028` makes release retries reuse build `028`. The `j25` and `26.2` parts identify the Java bytecode and Paper target.
 
-The Gradle deploy task copies the jar into local ignored test-server plugin folders and appends `.disabled` to older active MapHide jars.
+The Gradle deploy task copies the jar only into the maintained local `servers/Paper-26.2/plugins/` folder and appends `.disabled` to older active MapHide jars.
+
+`gradle check` runs release-documentation and generated-artifact drift checks. `gradle verifyLocalPaperServer` validates PaperScript's stable channel, Paper build, installed jar, and saved SHA-256.
 
 ## Readiness Check
 
@@ -71,4 +76,4 @@ Use:
 /bmpc debug placeholders
 ```
 
-The status output should show the MapHide version/build, BlueMap version, server version, Java runtime, and target build.
+The status output should show the MapHide version/build, exact compiled Paper API, BlueMap version, server version, Java runtime, and target build.

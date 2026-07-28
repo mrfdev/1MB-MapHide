@@ -11,6 +11,7 @@ Every `/bmpc` command first requires `maphide.player`. Subcommands then check th
 | `/bmpc` | Legacy self toggle. | `maphide.player`, `maphide.player.toggle` |
 | `/bmpc help [page]` | Shows paged command help. | `maphide.player`, `maphide.player.help` |
 | `/bmpc info` | Shows plugin info, starting commands, version/build, and docs URL. | `maphide.player`, `maphide.player.info` |
+| `/bmpc version` | Alias for `/bmpc info`. | `maphide.player`, `maphide.player.info` |
 | `/bmpc toggle` | Toggles your own BlueMap visibility. | `maphide.player`, `maphide.player.toggle` |
 | `/bmpc show` | Shows your own BlueMap marker. | `maphide.player`, `maphide.player.show` |
 | `/bmpc hide` | Hides your own BlueMap marker. | `maphide.player`, `maphide.player.hide` |

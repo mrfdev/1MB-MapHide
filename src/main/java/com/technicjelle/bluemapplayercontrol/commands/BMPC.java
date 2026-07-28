@@ -33,6 +33,7 @@ public class BMPC implements CommandExecutor, TabCompleter, Listener {
 			new CommandInfo("/bmpc", "Legacy self toggle.", "maphide.player, maphide.player.toggle", "maphide.player.toggle"),
 			new CommandInfo("/bmpc help [page]", "Shows paged command help.", "maphide.player, maphide.player.help", "maphide.player.help"),
 			new CommandInfo("/bmpc info", "Shows plugin info, starting commands, version/build, and docs URL.", "maphide.player, maphide.player.info", "maphide.player.info"),
+			new CommandInfo("/bmpc version", "Alias for /bmpc info.", "maphide.player, maphide.player.info", "maphide.player.info"),
 			new CommandInfo("/bmpc toggle", "Toggles your own BlueMap visibility.", "maphide.player, maphide.player.toggle", "maphide.player.toggle"),
 			new CommandInfo("/bmpc show", "Shows your own BlueMap marker.", "maphide.player, maphide.player.show", "maphide.player.show"),
 			new CommandInfo("/bmpc hide", "Hides your own BlueMap marker.", "maphide.player, maphide.player.hide", "maphide.player.hide"),
@@ -140,7 +141,7 @@ public class BMPC implements CommandExecutor, TabCompleter, Listener {
 		return switch (action) {
 			case "toggle", "show", "hide" -> handleVisibilityAction(sender, action, args);
 			case "help" -> handleHelp(sender, args);
-			case "info" -> handleInfo(sender);
+			case "info", "version" -> handleInfo(sender);
 			case "status" -> handleStatus(sender, args);
 			case "config" -> handleConfig(sender, args);
 			case "debug" -> handleDebug(sender, args);
@@ -176,9 +177,12 @@ public class BMPC implements CommandExecutor, TabCompleter, Listener {
 		service.send(sender, "info-intro");
 		service.send(sender, "info-plugin", Map.of(
 				"plugin_version", service.buildInfo("pluginVersion", service.buildInfo("version", "unknown")),
-				"build_number", service.buildInfo("buildNumber", "unknown"),
+				"build_number", service.buildInfo("buildNumber", "unknown")
+		));
+		service.send(sender, "info-target", Map.of(
 				"target_java", service.buildInfo("javaTarget", "unknown"),
-				"target_paper", service.buildInfo("paperTarget", "unknown")
+				"target_paper", service.buildInfo("paperTarget", "unknown"),
+				"paper_api", service.buildInfo("paperApiVersion", "unknown")
 		));
 		service.send(sender, "info-settings", Map.of(
 				"language", service.language(),
@@ -283,6 +287,13 @@ public class BMPC implements CommandExecutor, TabCompleter, Listener {
 		));
 		service.send(sender, "status-server-build", Map.of(
 				"build_number", service.buildInfo("buildNumber", "unknown")
+		));
+		service.send(sender, "status-server-target", Map.of(
+				"target_java", service.buildInfo("javaTarget", "unknown"),
+				"target_paper", service.buildInfo("paperTarget", "unknown"),
+				"paper_api", service.buildInfo("paperApiVersion", "unknown"),
+				"paper_build", service.buildInfo("paperBuild", "unknown"),
+				"paper_channel", service.buildInfo("paperChannel", "unknown")
 		));
 		service.send(sender, "status-server-bluemap", Map.of(
 				"bluemap_version", blueMapVersion,
@@ -483,6 +494,7 @@ public class BMPC implements CommandExecutor, TabCompleter, Listener {
 			addIfPermitted(sender, options, "hide", "maphide.player.hide");
 			addIfPermitted(sender, options, "help", "maphide.player.help");
 			addIfPermitted(sender, options, "info", "maphide.player.info");
+			addIfPermitted(sender, options, "version", "maphide.player.info");
 			addIfPermitted(sender, options, "status", "maphide.admin.status");
 			addIfPermitted(sender, options, "config", "maphide.admin.config", "maphide.admin.set");
 			addIfPermitted(sender, options, "debug", "maphide.admin.debug",
@@ -661,13 +673,12 @@ public class BMPC implements CommandExecutor, TabCompleter, Listener {
 	}
 
 	private void sendPageFooter(CommandSender sender, String pageCommand, PageBounds bounds) {
-		if (bounds.totalPages() <= 1) {
+		if (bounds.totalPages() <= 1 || bounds.page() >= bounds.totalPages()) {
 			return;
 		}
-		int next = bounds.page() >= bounds.totalPages() ? bounds.totalPages() : bounds.page() + 1;
 		service.send(sender, "page-footer", Map.of(
 				"command", pageCommand,
-				"next", Integer.toString(next)
+				"next", Integer.toString(bounds.page() + 1)
 		));
 	}
 

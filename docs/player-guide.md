@@ -23,7 +23,7 @@ The legacy command is still available:
 /bmpc toggle
 ```
 
-Use `/bmpc info` to see what MapHide is, which version is installed, useful starting commands, and the canonical docs link.
+Use `/bmpc info` or `/bmpc version` to see what MapHide is, which version is installed, useful starting commands, and the canonical docs link.
 
 ## Available Features
 
@@ -32,6 +32,7 @@ Use `/bmpc info` to see what MapHide is, which version is installed, useful star
 - Explicitly hide yourself with `/bmpc hide`.
 - Use `/bmpc help` for command help.
 - Use `/bmpc info` for plugin information and the docs URL.
+- Use `/bmpc version` as an alias for `/bmpc info`.
 
 ## Quick Start
 
@@ -51,6 +52,7 @@ Use `/bmpc info` to see what MapHide is, which version is installed, useful star
 | `/bmpc hide` | Hides your BlueMap marker. |
 | `/bmpc help [page]` | Shows command help. |
 | `/bmpc info` | Shows plugin information, starting commands, version/build, and the docs link. |
+| `/bmpc version` | Alias for `/bmpc info`. |
 
 ## Permissions Or Rank Requirements
 
@@ -63,7 +65,7 @@ The default player permissions are enabled for everyone:
 | `maphide.player.show` | everyone | `/bmpc show`. |
 | `maphide.player.hide` | everyone | `/bmpc hide`. |
 | `maphide.player.help` | everyone | `/bmpc help`. |
-| `maphide.player.info` | everyone | `/bmpc info`. |
+| `maphide.player.info` | everyone | `/bmpc info` and `/bmpc version`. |
 
 Some ranks or staff-managed states can force your marker to stay visible or hidden. If that happens, the command tells you that your permissions are forcing your map state.
 

@@ -30,12 +30,10 @@ The default `/map hide` alias is handled by MapHide itself and runs the same per
 
 ## Compatibility Notes
 
-The project is compiled for Java 25 and Paper 26.2. The current jar has been smoke-tested locally on:
+The project is compiled for Java 25 and `paper-api:26.2.build.84-stable`. The current jar has been smoke-tested locally on:
 
 | Server | BlueMap | Result |
 | --- | --- | --- |
-| Paper 1.21.11 | BlueMap 5.16 | Compatible in local testing. |
-| Paper 26.1.2 | BlueMap 5.20 | Compatibility-tested older target. |
-| Paper 26.2 | BlueMap 5.22 | Primary target. |
+| Paper 26.2 build 84 stable | BlueMap 5.22 | Primary target. |
 
-Paper 26.2 is the main Paper API target for current builds.
+Paper 26.2 build 84 stable is the maintained Paper API and runtime target for this release. The generated plugin metadata declares `api-version: 26.2`, so older Paper versions require an older MapHide build. Java 25.0.4 is the build and primary runtime; Java 26.0.2 is also smoke-tested without changing the Java 25 bytecode target.

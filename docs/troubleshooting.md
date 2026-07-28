@@ -74,6 +74,7 @@ Use these commands when checking a server:
 
 ```text
 /bmpc status
+/bmpc version
 /bmpc debug status
 /bmpc debug commands
 /bmpc debug permissions

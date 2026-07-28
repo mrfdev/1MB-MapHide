@@ -8,7 +8,7 @@ All permission defaults are defined in `src/main/resources/plugin.yml` and mirro
 | --- | --- | --- |
 | `maphide.player` | `true` | Allows access to `/bmpc` player commands. |
 | `maphide.player.help` | `true` | Allows `/bmpc help`. |
-| `maphide.player.info` | `true` | Allows `/bmpc info`. |
+| `maphide.player.info` | `true` | Allows `/bmpc info` and `/bmpc version`. |
 | `maphide.player.toggle` | `true` | Allows `/bmpc`, `/bmpc toggle`, and the configured alias. |
 | `maphide.player.show` | `true` | Allows `/bmpc show`. |
 | `maphide.player.hide` | `true` | Allows `/bmpc hide`. |

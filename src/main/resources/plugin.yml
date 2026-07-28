@@ -2,7 +2,7 @@ name: 1MB-MapHide
 version: '${version}'
 main: com.technicjelle.bluemapplayercontrol.BlueMapPlayerControl
 folia-supported: true
-api-version: '1.21'
+api-version: '${paperTarget}'
 depend:
   - BlueMap
 softdepend:
@@ -15,7 +15,7 @@ website: https://docs.1moreblock.com/custom-server-plugins/maphide/
 
 commands:
   bmpc:
-    usage: /<command> [help|info|toggle|show|hide|status|config|debug|reload]
+    usage: /<command> [help|info|version|toggle|show|hide|status|config|debug|reload]
     description: BlueMap marker visibility command.
 
 permissions:
