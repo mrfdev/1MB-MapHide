@@ -10,6 +10,8 @@ def paperTarget = providers.gradleProperty("paperTarget").get()
 def paperApiVersion = providers.gradleProperty("paperApiVersion").get()
 def paperBuild = providers.gradleProperty("paperBuild").get().toInteger()
 def paperChannel = providers.gradleProperty("paperChannel").get().toUpperCase()
+def blueMapApiVersion = providers.gradleProperty("blueMapApiVersion").get()
+def placeholderApiVersion = providers.gradleProperty("placeholderApiVersion").get()
 version = pluginVersion
 
 def buildNumberFile = file("build-number.txt")
@@ -19,11 +21,6 @@ def pinnedBuildNumber = providers.gradleProperty("releaseBuildNumber")
 def maintainedServerDirs = [
 	file("servers/Paper-26.2")
 ]
-
-def localCompileJars = files(
-	"servers/Paper-26.2/plugins/bluemap-5.22-paper.jar",
-	"servers/Paper-26.2/plugins/PlaceholderAPI-2.12.3.jar"
-)
 
 java {
 	toolchain {
@@ -83,7 +80,8 @@ def releaseVersion = providers.provider {
 
 dependencies {
 	compileOnly "io.papermc.paper:paper-api:${paperApiVersion}"
-	compileOnly localCompileJars
+	compileOnly "de.bluecolored:bluemap-api:${blueMapApiVersion}"
+	compileOnly "me.clip:placeholderapi:${placeholderApiVersion}"
 }
 
 tasks.processResources {
@@ -156,32 +154,38 @@ tasks.register("verifyReleaseMetadata") {
 		}).unique().collect { it.text }.join(System.lineSeparator())
 
 		[
-				(readme): [
-						"Version `${pluginVersion}`",
-						expectedJar,
-						"`io.papermc.paper:paper-api:${paperApiVersion}`"
-				],
-				(installation): [
-						"1MB-BlueMap-MapHide-v${pluginVersion}-<build>-j${javaTarget}-${paperTarget}.jar",
-						"`io.papermc.paper:paper-api:${paperApiVersion}`"
-				],
-				(integrations): [
-						"Paper ${paperTarget}",
-						"build ${paperBuild} ${paperChannel.toLowerCase()}"
-				],
-				(docsMetadata): [
-						"java_target: ${javaTarget}",
-						"paper_target: ${paperTarget}"
-				],
-				(pluginMetadata): [
-						"version: '\${version}'",
-						"api-version: '\${paperTarget}'"
-				],
-				(buildInfoTemplate): [
-						"paperApiVersion=\${paperApiVersion}",
-						"paperBuild=\${paperBuild}",
-						"paperChannel=\${paperChannel}"
-				]
+			(readme): [
+				"Version `${pluginVersion}`",
+				expectedJar,
+				"`io.papermc.paper:paper-api:${paperApiVersion}`",
+				"`de.bluecolored:bluemap-api:${blueMapApiVersion}`",
+				"`me.clip:placeholderapi:${placeholderApiVersion}`"
+			],
+			(installation): [
+				"1MB-BlueMap-MapHide-v${pluginVersion}-<build>-j${javaTarget}-${paperTarget}.jar",
+				"`io.papermc.paper:paper-api:${paperApiVersion}`",
+				"`de.bluecolored:bluemap-api:${blueMapApiVersion}`",
+				"`me.clip:placeholderapi:${placeholderApiVersion}`"
+			],
+			(integrations): [
+				"Paper ${paperTarget}",
+				"build ${paperBuild} ${paperChannel.toLowerCase()}",
+				"`de.bluecolored:bluemap-api:${blueMapApiVersion}`",
+				"`me.clip:placeholderapi:${placeholderApiVersion}`"
+			],
+			(docsMetadata): [
+				"java_target: ${javaTarget}",
+				"paper_target: ${paperTarget}"
+			],
+			(pluginMetadata): [
+				"version: '\${version}'",
+				"api-version: '\${paperTarget}'"
+			],
+			(buildInfoTemplate): [
+				"paperApiVersion=\${paperApiVersion}",
+				"paperBuild=\${paperBuild}",
+				"paperChannel=\${paperChannel}"
+			]
 		].each { File target, List<String> expectedValues ->
 			expectedValues.each { String expectedValue ->
 				if (!target.text.contains(expectedValue)) {

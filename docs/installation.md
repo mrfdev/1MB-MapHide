@@ -6,6 +6,7 @@
 - Java 25 bytecode, built with JDK 25.0.4.
 - Paper 26.2 build 84 stable is the maintained compile and release-test target.
 - The exact compile coordinate is `io.papermc.paper:paper-api:26.2.build.84-stable`.
+- BlueMapAPI `de.bluecolored:bluemap-api:2.8.0` and PlaceholderAPI `me.clip:placeholderapi:2.12.3` are resolved from their official Maven repositories.
 - PlaceholderAPI is optional.
 
 This release declares `api-version: 26.2` and is not intended for older Paper versions.
@@ -61,6 +62,8 @@ The jar name follows this pattern:
 `2.0.1` is the plugin version. The three-digit build number is stored in `build-number.txt`. An unpinned artifact build advances it once; `-PreleaseBuildNumber=028` makes release retries reuse build `028`. The `j25` and `26.2` parts identify the Java bytecode and Paper target.
 
 The Gradle deploy task copies the jar only into the maintained local `servers/Paper-26.2/plugins/` folder and appends `.disabled` to older active MapHide jars.
+
+The local server folder is not required to compile or package the plugin. It is only used by `deployServers` and `verifyLocalPaperServer`.
 
 `gradle check` runs release-documentation and generated-artifact drift checks. `gradle verifyLocalPaperServer` validates PaperScript's stable channel, Paper build, installed jar, and saved SHA-256.
 

@@ -4,11 +4,15 @@
 
 BlueMap is required. MapHide uses the BlueMap API to read and update player marker visibility in the BlueMap web app.
 
+Compilation uses the official `de.bluecolored:bluemap-api:2.8.0` artifact matching BlueMap 5.22.
+
 If BlueMap is not ready yet, MapHide sends a "BlueMap is not ready yet" message and does not change visibility.
 
 ## PlaceholderAPI
 
 PlaceholderAPI is optional. When present, MapHide registers the `maphide` expansion and exposes `%maphide_*%` placeholders.
+
+Compilation uses the official `me.clip:placeholderapi:2.12.3` artifact; it is not bundled into the MapHide jar.
 
 Use `/bmpc debug placeholders` to confirm whether PlaceholderAPI is enabled and to list placeholder meanings.
 

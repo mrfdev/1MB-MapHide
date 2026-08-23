@@ -139,7 +139,9 @@ Requirements:
 - Gradle 9.6.1 or newer
 - JDK 25.0.4 at `/Library/Java/JavaVirtualMachines/jdk-25.0.4.jdk/Contents/Home`
 - The exact Maven dependency `io.papermc.paper:paper-api:26.2.build.84-stable`
-- The local `servers/Paper-26.2` folder with `plugins/bluemap-5.22-paper.jar` and optional `plugins/PlaceholderAPI-2.12.3.jar`
+- The Maven dependencies `de.bluecolored:bluemap-api:2.8.0` and `me.clip:placeholderapi:2.12.3`
+
+A clean checkout can compile without a local Paper server. The local `servers/Paper-26.2` folder is only needed for `deployServers` and `verifyLocalPaperServer`.
 
 Build release `028` and deploy it to the maintained Paper 26.2 test server:
 

@@ -1,25 +1,56 @@
-name: Java CI with Maven
+name: Java CI with Gradle
 
 on:
   push:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
+    name: Build plugin jar
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up JDK
-        uses: actions/setup-java@v4
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Java 25
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
-          java-version: '21'
           distribution: 'temurin'
-      - name: Build with Maven
-        run: mvn -B package --file pom.xml
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v4
+          java-version: '25'
+
+      - name: Set up Gradle 9.6.1
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
         with:
-          path: |
-            target/*.jar
-            !target/original-*.jar
+          gradle-version: '9.6.1'
+          cache-provider: basic
+
+      - name: Read release build number
+        id: build-number
+        shell: bash
+        run: |
+          build_number="$(tr -d '\r\n' < build-number.txt)"
+          if [[ ! "$build_number" =~ ^[0-9]{3}$ ]]; then
+            echo "build-number.txt must contain exactly three digits" >&2
+            exit 1
+          fi
+          echo "value=$build_number" >> "$GITHUB_OUTPUT"
+
+      - name: Build and verify plugin jar
+        run: >-
+          gradle --no-daemon
+          -PreleaseBuildNumber=${{ steps.build-number.outputs.value }}
+          clean check -x test
+
+      - name: Upload plugin jar
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 1MB-MapHide-${{ github.sha }}
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 14
