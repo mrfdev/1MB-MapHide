@@ -137,35 +137,38 @@ PlaceholderAPI is optional. When installed, 1MB-MapHide registers:
 Requirements:
 
 - Gradle 9.6.1 or newer
-- JDK 25.0.4 at `/Library/Java/JavaVirtualMachines/jdk-25.0.4.jdk/Contents/Home`
+- JDK 25.0.4.1 at `/Library/Java/JavaVirtualMachines/jdk-25.0.4.1.jdk/Contents/Home`
 - The exact Maven dependency `io.papermc.paper:paper-api:26.2.build.84-stable`
 - The Maven dependencies `de.bluecolored:bluemap-api:2.8.0` and `me.clip:placeholderapi:2.12.3`
 
 A clean checkout can compile without a local Paper server. The local `servers/Paper-26.2` folder is only needed for `deployServers` and `verifyLocalPaperServer`.
 
-Build release `028` and deploy it to the maintained Paper 26.2 test server:
+Build release `029` and deploy it to the maintained Paper 26.2 test server:
 
 ```sh
-JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-25.0.4.jdk/Contents/Home \
-  gradle --no-daemon -PreleaseBuildNumber=028 clean build
+export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-25.0.4.1.jdk/Contents/Home
+export PATH="$JAVA_HOME/bin:$PATH"
+gradle --no-daemon -PreleaseBuildNumber=029 clean build verifyLocalPaperServer
 ```
 
 Jars are named like:
 
 ```text
-1MB-BlueMap-MapHide-v2.0.1-028-j25-26.2.jar
+1MB-BlueMap-MapHide-v2.0.1-029-j25-26.2.jar
 ```
 
 The plugin version comes from `gradle.properties`. The three-digit build number is stored in `build-number.txt` and advances for a new unpinned jar build. Pin `releaseBuildNumber` when repeating a release build so retries reuse the intended number instead of incrementing it again. The Java and Paper parts of the jar name are target identifiers, not the semantic plugin version.
 
-`verifyReleaseMetadata` checks source and documentation values. `verifyArtifactMetadata` checks the generated `plugin.yml`, build information, jar name, and Java 25 class version. Both run as part of `check`.
+`verifyBuildJava` checks that Gradle, the compiler, and the test launcher use JDK 25.0.4.1 from `JAVA_HOME`. `verifyReleaseMetadata` checks source and documentation values. `verifyArtifactMetadata` checks the generated `plugin.yml`, build information, jar name, and every class for Java 25 bytecode without preview features. All run as part of `check`.
 
 After a successful `build`, `deployServers` copies the jar into `servers/Paper-26.2/plugins/`. Before copying, it renames active older MapHide jars in that folder by appending `.disabled`.
+
+Run `python3 scripts/smoke-test.py` after building to verify Paper startup, plugin loading, console commands, configuration reloads, placeholders, and clean shutdown on both JDK 25.0.4.1 and JDK 26.0.2.1. It uses isolated copies of the local server and saves new logs under `servers/verification/`. See [runtime verification](docs/installation.md#runtime-verification) for prerequisites and coverage. Live uses Java 26; the plugin retains Java 25 bytecode.
 
 ## Installation
 
 1. Stop the Paper server.
-2. Put `1MB-BlueMap-MapHide-v2.0.1-028-j25-26.2.jar` in `plugins/`.
+2. Put `1MB-BlueMap-MapHide-v2.0.1-029-j25-26.2.jar` in `plugins/`.
 3. Make sure BlueMap is also in `plugins/`.
 4. Remove or disable old `BlueMapPlayerControl-*.jar` copies.
 5. Start the server.

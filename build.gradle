@@ -6,6 +6,7 @@ group = "com.onemb"
 
 def pluginVersion = providers.gradleProperty("pluginVersion").get()
 def javaTarget = providers.gradleProperty("javaTarget").get().toInteger()
+def buildJavaVersion = providers.gradleProperty("buildJavaVersion").get()
 def paperTarget = providers.gradleProperty("paperTarget").get()
 def paperApiVersion = providers.gradleProperty("paperApiVersion").get()
 def paperBuild = providers.gradleProperty("paperBuild").get().toInteger()
@@ -28,7 +29,30 @@ java {
 	}
 }
 
+tasks.register("verifyBuildJava") {
+	group = "verification"
+	description = "Verifies Gradle, compilation, and tests use the release JDK selected through JAVA_HOME."
+
+	doLast {
+		String javaHome = providers.environmentVariable("JAVA_HOME").orNull
+		if (!javaHome || file(javaHome).canonicalFile != file(System.getProperty("java.home")).canonicalFile) {
+			throw new GradleException("Set JAVA_HOME and prepend its bin directory to PATH before building")
+		}
+		if (System.getProperty("java.version") != buildJavaVersion) {
+			throw new GradleException("Build with JDK ${buildJavaVersion}; running ${System.getProperty('java.version')}")
+		}
+		[tasks.compileJava.javaCompiler.get().metadata, tasks.test.javaLauncher.get().metadata].each { metadata ->
+			if (metadata.javaRuntimeVersion.split('\\+')[0] != buildJavaVersion
+					|| metadata.installationPath.asFile.canonicalFile != file(javaHome).canonicalFile) {
+				throw new GradleException("Compiler and tests must use JDK ${buildJavaVersion} from JAVA_HOME")
+			}
+		}
+		logger.lifecycle("Verified build/compiler/test JDK ${System.getProperty('java.runtime.version')} at ${javaHome}")
+	}
+}
+
 tasks.withType(JavaCompile).configureEach {
+	dependsOn(tasks.named("verifyBuildJava"))
 	options.encoding = "UTF-8"
 	options.release = javaTarget
 	options.compilerArgs.add("-Xlint:deprecation")
@@ -147,6 +171,7 @@ tasks.register("verifyReleaseMetadata") {
 		File installation = file("docs/installation.md")
 		File integrations = file("docs/integrations.md")
 		File docsMetadata = file("docs/plugin-docs.yml")
+		File workflow = file(".github/workflows/main.yml")
 		File pluginMetadata = file("src/main/resources/plugin.yml")
 		File buildInfoTemplate = file("src/main/resources/build-info.properties")
 		String documentation = ([readme, installation, integrations] + fileTree("docs") {
@@ -156,12 +181,14 @@ tasks.register("verifyReleaseMetadata") {
 		[
 			(readme): [
 				"Version `${pluginVersion}`",
+				"JDK ${buildJavaVersion}",
 				expectedJar,
 				"`io.papermc.paper:paper-api:${paperApiVersion}`",
 				"`de.bluecolored:bluemap-api:${blueMapApiVersion}`",
 				"`me.clip:placeholderapi:${placeholderApiVersion}`"
 			],
 			(installation): [
+				"JDK ${buildJavaVersion}",
 				"1MB-BlueMap-MapHide-v${pluginVersion}-<build>-j${javaTarget}-${paperTarget}.jar",
 				"`io.papermc.paper:paper-api:${paperApiVersion}`",
 				"`de.bluecolored:bluemap-api:${blueMapApiVersion}`",
@@ -176,6 +203,9 @@ tasks.register("verifyReleaseMetadata") {
 			(docsMetadata): [
 				"java_target: ${javaTarget}",
 				"paper_target: ${paperTarget}"
+			],
+			(workflow): [
+				"java-version: '${buildJavaVersion}'"
 			],
 			(pluginMetadata): [
 				"version: '\${version}'",
@@ -248,16 +278,23 @@ tasks.register("verifyArtifactMetadata") {
 				throw new GradleException("Generated plugin.yml metadata is stale")
 			}
 
-			byte[] mainClass = zip.getInputStream(zip.getEntry(
-					"com/technicjelle/bluemapplayercontrol/BlueMapPlayerControl.class"
-			)).readAllBytes()
-			int classMajorVersion = ((mainClass[6] & 0xff) << 8) | (mainClass[7] & 0xff)
 			int expectedClassMajorVersion = 44 + javaTarget
-			if (classMajorVersion != expectedClassMajorVersion) {
-				throw new GradleException(
-						"Artifact class version ${classMajorVersion}; expected Java ${javaTarget} (${expectedClassMajorVersion})"
-				)
+			if (zip.getEntry("com/technicjelle/bluemapplayercontrol/BlueMapPlayerControl.class") == null) {
+				throw new GradleException("Artifact is missing the plugin main class")
 			}
+			def classes = zip.entries().findAll { it.name.endsWith(".class") }
+			if (classes.isEmpty()) {
+				throw new GradleException("Artifact contains no Java classes")
+			}
+			classes.each { entry ->
+				byte[] bytecode = zip.getInputStream(entry).readAllBytes()
+				int minor = ((bytecode[4] & 0xff) << 8) | (bytecode[5] & 0xff)
+				int major = ((bytecode[6] & 0xff) << 8) | (bytecode[7] & 0xff)
+				if (major != expectedClassMajorVersion || minor != 0) {
+					throw new GradleException("${entry.name} has class version ${major}.${minor}; expected ${expectedClassMajorVersion}.0 without preview features")
+				}
+			}
+			logger.lifecycle("Verified ${classes.size()} Java ${javaTarget} classes without preview features")
 		} finally {
 			zip.close()
 		}
@@ -269,7 +306,7 @@ tasks.register("verifyLocalPaperServer") {
 	description = "Checks the maintained local PaperScript config, Paper build, and saved SHA-256."
 
 	doLast {
-		File serverDir = maintainedServerDirs.first()
+		File serverDir = file(providers.gradleProperty("localPaperServerDir").getOrElse("servers/Paper-26.2"))
 		File configFile = new File(serverDir, "paperscript/config.json")
 		File stateFile = new File(serverDir, "paperscript/state.json")
 		if (!configFile.isFile() || !stateFile.isFile()) {
@@ -283,7 +320,8 @@ tasks.register("verifyLocalPaperServer") {
 		if (config.default_channel?.toString()?.toUpperCase() != "STABLE"
 				|| config.check_latest_channel_only?.toString()?.toUpperCase() != "STABLE"
 				|| config.allow_same_version_build_upgrade != true
-				|| config.download_filename_pattern != "Paper-{version}.jar") {
+				|| (config.containsKey("download_filename_pattern")
+						&& config.download_filename_pattern != "Paper-{version}.jar")) {
 			throw new GradleException("Maintained PaperScript config does not match the stable release policy")
 		}
 		if (state.current_version != paperTarget || state.current_build.toString().toInteger() != paperBuild) {
@@ -298,8 +336,23 @@ tasks.register("verifyLocalPaperServer") {
 				.digest(paperJar.bytes)
 				.collect { String.format("%02x", it & 0xff) }
 				.join()
-		if (actualSha256 != state.current_sha256 || actualSha256 != state.expected_sha256) {
+		if (actualSha256 != state.current_sha256) {
 			throw new GradleException("Maintained Paper jar SHA-256 does not match PaperScript state")
+		}
+		// Newer PaperScript records expected_sha256 for a staged upgrade, not the current jar.
+		if (state.staged_jar) {
+			File stagedJar = new File(serverDir, state.staged_jar.toString())
+			if (!stagedJar.isFile()) {
+				throw new GradleException("Staged Paper jar is missing: ${stagedJar}")
+			}
+			String stagedSha256 = java.security.MessageDigest.getInstance("SHA-256")
+					.digest(stagedJar.bytes).collect { String.format("%02x", it & 0xff) }.join()
+			if (stagedSha256 != state.staged_sha256 || stagedSha256 != state.expected_sha256) {
+				throw new GradleException("Staged Paper jar SHA-256 does not match PaperScript state")
+			}
+			logger.lifecycle("Verified separately staged ${stagedJar.name}; release tests still use ${paperJar.name}")
+		} else if (actualSha256 != state.expected_sha256) {
+			throw new GradleException("Maintained Paper jar SHA-256 does not match the expected download checksum")
 		}
 		logger.lifecycle("Verified Paper ${paperTarget} build ${paperBuild} ${paperChannel}: ${paperJar}")
 	}
@@ -349,6 +402,7 @@ tasks.register("deployServers") {
 }
 
 tasks.named("check") {
+	dependsOn(tasks.named("verifyBuildJava"))
 	dependsOn(tasks.named("verifyReleaseMetadata"))
 	dependsOn(tasks.named("verifyArtifactMetadata"))
 }
