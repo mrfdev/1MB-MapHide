@@ -21,17 +21,17 @@ https://docs.1moreblock.com/custom-server-plugins/maphide/
 
 ## Changelog Summary
 
-Version `2.0.1` is the Paper 26.2 stable compatibility and housekeeping release. It pins `io.papermc.paper:paper-api:26.2.build.84-stable`, keeps Java 25 bytecode, adds the `/bmpc version` compatibility alias, reports the exact compiled Paper API in diagnostics, makes release-build retries deterministic, validates generated metadata and documented jar names, and deploys only to the maintained Paper 26.2 test server. The existing `/bmpc`, `/map hide`, MiniMessage translations, comment-preserving configuration, permissions, timers, default visibility, admin tools, and PlaceholderAPI behavior remain intact.
+Version `2.0.2` targets Paper 26.3 build 41 on its experimental ALPHA channel, with the exact API `io.papermc.paper:paper-api:26.3.build.41-alpha`. Build `030` retains Java 25 bytecode and is tested on Java 27. The Paper 26.2 baseline is preserved at annotated tag `v2.0.1-paper-26.2` and in `servers/Paper-26.2`. Plugin identity, commands, permissions, configuration, player visibility, and PlaceholderAPI behavior are unchanged.
 
 ## Supported Servers
 
-This build targets Java 25 bytecode and the exact stable Paper API coordinate `io.papermc.paper:paper-api:26.2.build.84-stable`. Paper 26.2 build 84 stable is the maintained release-test server:
+This build targets Java 25 bytecode and the exact Paper API coordinate `io.papermc.paper:paper-api:26.3.build.41-alpha`. Paper 26.3 build 41 alpha is the maintained release-test server:
 
 | Server | BlueMap plugin |
 | --- | --- |
-| Paper 26.2 build 84 stable | `bluemap-5.22-paper.jar` |
+| Paper 26.3 build 41 alpha | `bluemap-5.27-paper.jar` (runtime 5.27, manifest 5.26) |
 
-The generated plugin metadata declares `api-version: 26.2`, so this release is not intended for older Paper versions. Use an older MapHide build for Paper 26.1.2 or 1.21.11.
+The generated plugin metadata declares `api-version: 26.3`, so this release is not intended for older Paper versions. Use an older MapHide build for Paper 26.1.2 or 1.21.11.
 
 ## Configuration
 
@@ -138,37 +138,37 @@ Requirements:
 
 - Gradle 9.6.1 or newer
 - JDK 25.0.4.1 at `/Library/Java/JavaVirtualMachines/jdk-25.0.4.1.jdk/Contents/Home`
-- The exact Maven dependency `io.papermc.paper:paper-api:26.2.build.84-stable`
+- The exact Maven dependency `io.papermc.paper:paper-api:26.3.build.41-alpha`
 - The Maven dependencies `de.bluecolored:bluemap-api:2.8.0` and `me.clip:placeholderapi:2.12.3`
 
-A clean checkout can compile without a local Paper server. The local `servers/Paper-26.2` folder is only needed for `deployServers` and `verifyLocalPaperServer`.
+A clean checkout can compile without a local Paper server. The local `servers/Paper-26.3` folder is only needed for `deployServers` and `verifyLocalPaperServer`.
 
-Build release `029` and deploy it to the maintained Paper 26.2 test server:
+Build release `030` and deploy it to the maintained Paper 26.3 test server:
 
 ```sh
 export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-25.0.4.1.jdk/Contents/Home
 export PATH="$JAVA_HOME/bin:$PATH"
-gradle --no-daemon -PreleaseBuildNumber=029 clean build verifyLocalPaperServer
+gradle --no-daemon -PreleaseBuildNumber=030 clean build verifyLocalPaperServer
 ```
 
 Jars are named like:
 
 ```text
-1MB-BlueMap-MapHide-v2.0.1-029-j25-26.2.jar
+1MB-BlueMap-MapHide-v2.0.2-030-j25-26.3.jar
 ```
 
 The plugin version comes from `gradle.properties`. The three-digit build number is stored in `build-number.txt` and advances for a new unpinned jar build. Pin `releaseBuildNumber` when repeating a release build so retries reuse the intended number instead of incrementing it again. The Java and Paper parts of the jar name are target identifiers, not the semantic plugin version.
 
 `verifyBuildJava` checks that Gradle, the compiler, and the test launcher use JDK 25.0.4.1 from `JAVA_HOME`. `verifyReleaseMetadata` checks source and documentation values. `verifyArtifactMetadata` checks the generated `plugin.yml`, build information, jar name, and every class for Java 25 bytecode without preview features. All run as part of `check`.
 
-After a successful `build`, `deployServers` copies the jar into `servers/Paper-26.2/plugins/`. Before copying, it renames active older MapHide jars in that folder by appending `.disabled`.
+After a successful `build`, `deployServers` copies the jar into `servers/Paper-26.3/plugins/`. Before copying, it renames active older MapHide jars in that folder by appending `.disabled`.
 
-Run `python3 scripts/smoke-test.py` after building to verify Paper startup, plugin loading, console commands, configuration reloads, placeholders, and clean shutdown on both JDK 25.0.4.1 and JDK 26.0.2.1. It uses isolated copies of the local server and saves new logs under `servers/verification/`. See [runtime verification](docs/installation.md#runtime-verification) for prerequisites and coverage. Live uses Java 26; the plugin retains Java 25 bytecode.
+Run `python3 scripts/smoke-test.py` after building to verify Paper startup, plugin loading, console commands, configuration reloads, placeholders, and clean shutdown on JDK 27. It uses an isolated copy of `servers/Paper-26.3` and saves logs under `servers/verification/`. See [runtime verification](docs/installation.md#runtime-verification) for coverage and [build 030 evidence](docs/verification/2026-09-25-paper-26.3.md) for results. Compile and test tasks use JDK 25.0.4.1; the maintained server launcher uses `/Library/Java/JavaVirtualMachines/jdk-27.jdk/Contents/Home`.
 
 ## Installation
 
 1. Stop the Paper server.
-2. Put `1MB-BlueMap-MapHide-v2.0.1-029-j25-26.2.jar` in `plugins/`.
+2. Put `1MB-BlueMap-MapHide-v2.0.2-030-j25-26.3.jar` in `plugins/`.
 3. Make sure BlueMap is also in `plugins/`.
 4. Remove or disable old `BlueMapPlayerControl-*.jar` copies.
 5. Start the server.

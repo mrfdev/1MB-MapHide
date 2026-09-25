@@ -11,6 +11,7 @@ def paperTarget = providers.gradleProperty("paperTarget").get()
 def paperApiVersion = providers.gradleProperty("paperApiVersion").get()
 def paperBuild = providers.gradleProperty("paperBuild").get().toInteger()
 def paperChannel = providers.gradleProperty("paperChannel").get().toUpperCase()
+def paperSha256 = providers.gradleProperty("paperSha256").get()
 def blueMapApiVersion = providers.gradleProperty("blueMapApiVersion").get()
 def placeholderApiVersion = providers.gradleProperty("placeholderApiVersion").get()
 version = pluginVersion
@@ -20,7 +21,7 @@ def releaseBuildNumber = new java.util.concurrent.atomic.AtomicReference<String>
 def pinnedBuildNumber = providers.gradleProperty("releaseBuildNumber")
 
 def maintainedServerDirs = [
-	file("servers/Paper-26.2")
+	file("servers/Paper-26.3")
 ]
 
 java {
@@ -163,8 +164,11 @@ tasks.register("verifyReleaseMetadata") {
 		if (paperApiVersion != expectedPaperApi) {
 			throw new GradleException("paperApiVersion ${paperApiVersion} does not match ${expectedPaperApi}")
 		}
-		if (paperChannel != "STABLE") {
-			throw new GradleException("Paper release channel must be STABLE")
+		if (!(paperChannel in ["STABLE", "BETA", "ALPHA"])) {
+			throw new GradleException("Paper release channel must explicitly select STABLE, BETA, or ALPHA")
+		}
+		if (!(paperSha256 ==~ /[0-9a-f]{64}/)) {
+			throw new GradleException("paperSha256 must pin the official server download checksum")
 		}
 
 		File readme = file("README.md")
@@ -306,7 +310,7 @@ tasks.register("verifyLocalPaperServer") {
 	description = "Checks the maintained local PaperScript config, Paper build, and saved SHA-256."
 
 	doLast {
-		File serverDir = file(providers.gradleProperty("localPaperServerDir").getOrElse("servers/Paper-26.2"))
+		File serverDir = file(providers.gradleProperty("localPaperServerDir").getOrElse("servers/Paper-26.3"))
 		File configFile = new File(serverDir, "paperscript/config.json")
 		File stateFile = new File(serverDir, "paperscript/state.json")
 		if (!configFile.isFile() || !stateFile.isFile()) {
@@ -317,15 +321,18 @@ tasks.register("verifyLocalPaperServer") {
 		def parser = new groovy.json.JsonSlurper()
 		Map config = parser.parse(configFile) as Map
 		Map state = parser.parse(stateFile) as Map
-		if (config.default_channel?.toString()?.toUpperCase() != "STABLE"
-				|| config.check_latest_channel_only?.toString()?.toUpperCase() != "STABLE"
+		if (config.default_channel?.toString()?.toUpperCase() != paperChannel
+				|| config.check_latest_channel_only?.toString()?.toUpperCase() != paperChannel
 				|| config.allow_same_version_build_upgrade != true
 				|| (config.containsKey("download_filename_pattern")
 						&& config.download_filename_pattern != "Paper-{version}.jar")) {
-			throw new GradleException("Maintained PaperScript config does not match the stable release policy")
+			throw new GradleException("Maintained PaperScript config does not match the explicit ${paperChannel} release channel")
 		}
 		if (state.current_version != paperTarget || state.current_build.toString().toInteger() != paperBuild) {
 			throw new GradleException("Maintained Paper server is not ${paperTarget} build ${paperBuild}")
+		}
+		if (state.current_channel != paperChannel || file(state.server_dir.toString()).canonicalFile != serverDir.canonicalFile) {
+			throw new GradleException("Maintained Paper state has a stale channel or server directory")
 		}
 
 		File paperJar = new File(serverDir, state.current_jar.toString())
@@ -336,8 +343,8 @@ tasks.register("verifyLocalPaperServer") {
 				.digest(paperJar.bytes)
 				.collect { String.format("%02x", it & 0xff) }
 				.join()
-		if (actualSha256 != state.current_sha256) {
-			throw new GradleException("Maintained Paper jar SHA-256 does not match PaperScript state")
+		if (actualSha256 != state.current_sha256 || actualSha256 != paperSha256) {
+			throw new GradleException("Maintained Paper jar SHA-256 does not match PaperScript state and the pinned official checksum")
 		}
 		// Newer PaperScript records expected_sha256 for a staged upgrade, not the current jar.
 		if (state.staged_jar) {
@@ -360,12 +367,15 @@ tasks.register("verifyLocalPaperServer") {
 
 tasks.register("deployServers") {
 	group = "build"
-	description = "Copies the built jar into the maintained Paper 26.2 plugins folder and disables older active copies."
+	description = "Copies the built jar into the maintained Paper 26.3 plugins folder and disables older active copies."
 	dependsOn(tasks.jar)
 
 	doLast {
 		File builtJar = tasks.jar.archiveFile.get().asFile
 		maintainedServerDirs.each { File serverDir ->
+			if (new File(serverDir, "paperscript/locks/server-launch").exists()) {
+				throw new GradleException("Stop the maintained launcher before deploying: ${serverDir}")
+			}
 			File pluginsDir = new File(serverDir, "plugins")
 			if (!pluginsDir.isDirectory()) {
 				logger.lifecycle("Skipping ${pluginsDir}: directory does not exist")

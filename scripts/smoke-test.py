@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the release jar on both installed JDKs in isolated local Paper copies."""
+"""Exercise the release jar on Java 27 in an isolated local Paper 26.3 copy."""
 
 import argparse
 from datetime import datetime, timezone
@@ -18,7 +18,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 JAVA_ROOT = Path("/Library/Java/JavaVirtualMachines")
-RUNTIMES = ("25.0.4.1", "26.0.2.1")
+RUNTIME_VERSION = "27"
 
 
 def properties(text):
@@ -41,10 +41,12 @@ def prepare_server(source, destination, artifact, metadata):
     """Copy fixtures; never start or edit the maintained world's files."""
     state = json.loads((source / "paperscript/state.json").read_text())
     if (state["current_version"] != metadata["paperTarget"]
-            or str(state["current_build"]) != metadata["paperBuild"]):
+            or str(state["current_build"]) != metadata["paperBuild"]
+            or state["current_channel"] != metadata["paperChannel"]):
         raise RuntimeError("Maintained Paper version/build does not match the artifact")
     paper = source / state["current_jar"]
-    if sha256(paper) != state["current_sha256"]:
+    pinned_sha256 = properties((ROOT / "gradle.properties").read_text())["paperSha256"]
+    if sha256(paper) != state["current_sha256"] or state["current_sha256"] != pinned_sha256:
         raise RuntimeError("Maintained Paper checksum mismatch")
     if not re.search(r"(?m)^eula=true$", (source / "eula.txt").read_text()):
         raise RuntimeError("The maintained test server must already have an accepted EULA")
@@ -97,6 +99,13 @@ def run_server(directory, java_home, version, metadata):
     print(f"Starting Paper {metadata['paperTarget']} build {metadata['paperBuild']} on {version}", flush=True)
     lines = []
     checks = []
+    bluemap = list((directory / "plugins").glob("bluemap-*.jar"))
+    if len(bluemap) != 1:
+        raise RuntimeError("Expected exactly one BlueMap runtime jar")
+    with zipfile.ZipFile(bluemap[0]) as jar:
+        manifest = jar.read("plugin.yml").decode()
+        bluemap_version = json.loads(jar.read("de/bluecolored/bluemap/version.json"))["version"]
+    bluemap_plugin_version = re.search(r"(?m)^version:\s*['\"]?([^'\"\s]+)", manifest).group(1)
     with (directory / "console.log").open("w") as log:
         process = subprocess.Popen(
             ["java", "-Xms512M", "-Xmx2G", "-XX:ActiveProcessorCount=4",
@@ -136,11 +145,13 @@ def run_server(directory, java_home, version, metadata):
         try:
             expect("startup and plugin loading", ["Done (", "[1MB-MapHide] 1MB-MapHide enabled",
                                                   "PlaceholderAPI expansion registered"], timeout=180)
-            expect("BlueMap ready", ["[BlueMap] Loaded!"], timeout=180)
+            expect("BlueMap ready", [f"[BlueMap] Enabling BlueMap v{bluemap_plugin_version}",
+                                     "[BlueMap] Loaded!"], timeout=180)
             command("bmpc status", f"Build: {metadata['buildNumber']}",
                     f"API {metadata['paperApiVersion']}", f"Java: {version}",
-                    "BlueMap: 5.22, API:", f"{metadata['paperTarget']}-{metadata['paperBuild']}-")
-            command("bmpc info", f"build {metadata['buildNumber']}", "Target: Java 25 / Paper 26.2")
+                    f"BlueMap: {bluemap_version}, API:", f"{metadata['paperTarget']}-{metadata['paperBuild']}-")
+            command("bmpc info", f"build {metadata['buildNumber']}",
+                    f"Target: Java {metadata['javaTarget']} / Paper {metadata['paperTarget']}")
             command("bmpc version", f"build {metadata['buildNumber']}", "1MB-MapHide info")
             for value, expected in (("bmpc help", "(page 1/"),
                                     ("bmpc help 2", "(page 2/"),
@@ -168,7 +179,7 @@ def run_server(directory, java_home, version, metadata):
             if "# Preserve this smoke-test comment." not in config or "smoke-custom-key: preserved" not in config:
                 raise RuntimeError("Config reload discarded a custom comment or unknown key")
             checks.append("config comments and custom keys preserved")
-            command("bmpc status", f"Java: {version}", "BlueMap: 5.22, API:")
+            command("bmpc status", f"Java: {version}", f"BlueMap: {bluemap_version}, API:")
         finally:
             if process.poll() is None:
                 process.stdin.write("stop\n")
@@ -185,7 +196,7 @@ def run_server(directory, java_home, version, metadata):
                     raise RuntimeError("Paper did not shut down cleanly within 60 seconds")
             reader.join(timeout=5)
         expect("clean shutdown", ["[1MB-MapHide] 1MB-MapHide disabled", "[BlueMap] Saved and stopped!",
-                                  "All dimensions are saved"])
+                                  "All RegionFile I/O tasks to complete"])
         if process.returncode != 0:
             raise RuntimeError(f"Paper exited with {process.returncode}")
         failures = [line.strip() for line in lines if re.search(
@@ -198,11 +209,10 @@ def run_server(directory, java_home, version, metadata):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--server", type=Path, default=ROOT / "servers/Paper-26.2")
+    parser.add_argument("--server", type=Path, default=ROOT / "servers/Paper-26.3")
     parser.add_argument("--output", type=Path)
-    for major, version in zip((25, 26), RUNTIMES):
-        parser.add_argument(f"--java{major}-home", type=Path,
-                            default=JAVA_ROOT / f"jdk-{version}.jdk/Contents/Home")
+    parser.add_argument("--java27-home", type=Path,
+                        default=JAVA_ROOT / "jdk-27.jdk/Contents/Home")
     args = parser.parse_args()
     config = properties((ROOT / "gradle.properties").read_text())
     build = (ROOT / "build-number.txt").read_text().strip()
@@ -210,18 +220,17 @@ def main():
         f"1MB-BlueMap-MapHide-v{config['pluginVersion']}-{build}-j{config['javaTarget']}-{config['paperTarget']}.jar")
     with zipfile.ZipFile(artifact) as jar:
         metadata = properties(jar.read("build-info.properties").decode())
-    if any(metadata[key] != config[key] for key in ("pluginVersion", "javaTarget", "paperTarget", "paperBuild", "paperApiVersion")) or metadata["buildNumber"] != build:
+    if any(metadata[key] != config[key] for key in ("pluginVersion", "javaTarget", "paperTarget", "paperBuild", "paperApiVersion", "paperChannel")) or metadata["buildNumber"] != build:
         raise RuntimeError("Rebuild first: artifact metadata does not match the checkout")
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     output = (args.output or ROOT / f"servers/verification/build-{build}-{stamp}").resolve()
     output.mkdir(parents=True, exist_ok=False)
     report = {"artifact": str(artifact), "sha256": sha256(artifact), "metadata": metadata, "runs": []}
-    for java_home, version in zip((args.java25_home, args.java26_home), RUNTIMES):
-        directory = output / f"java-{version}"
-        report["paper_sha256"] = prepare_server(args.server.resolve(), directory, artifact, metadata)
-        report["runs"].append(run_server(directory, java_home.resolve(), version, metadata))
-        (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
-    print(f"PASS: both runtimes. Results: {output / 'results.json'}", flush=True)
+    directory = output / f"java-{RUNTIME_VERSION}"
+    report["paper_sha256"] = prepare_server(args.server.resolve(), directory, artifact, metadata)
+    report["runs"].append(run_server(directory, args.java27_home.resolve(), RUNTIME_VERSION, metadata))
+    (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
+    print(f"PASS: Java {RUNTIME_VERSION}. Results: {output / 'results.json'}", flush=True)
 
 
 if __name__ == "__main__":
