@@ -1,25 +1,70 @@
-name: Java CI with Maven
+name: Java CI with Gradle
 
 on:
   push:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
+    name: Build plugin jar
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up JDK
-        uses: actions/setup-java@v4
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Oracle JDK 27 for tests
+        id: test-java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
-          java-version: '21'
-          distribution: 'temurin'
-      - name: Build with Maven
-        run: mvn -B package --file pom.xml
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v4
+          distribution: 'oracle'
+          java-version: '27'
+
+      - name: Set up Oracle JDK 25 for Gradle and compilation
+        id: build-java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
-          path: |
-            target/*.jar
-            !target/original-*.jar
+          distribution: 'oracle'
+          java-version: '25'
+
+      - name: Set up Gradle 9.8.2
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
+        with:
+          gradle-version: '9.8.2'
+          cache-provider: basic
+
+      - name: Verify Python runtime for fixture tests
+        run: python3 -c 'import sys; assert sys.version_info >= (3, 11), "Python 3.11+ required"'
+
+      - name: Read release build number
+        id: build-number
+        shell: bash
+        run: |
+          build_number="$(tr -d '\r\n' < build-number.txt)"
+          if [[ ! "$build_number" =~ ^[0-9]{3}$ ]]; then
+            echo "build-number.txt must contain exactly three digits" >&2
+            exit 1
+          fi
+          echo "value=$build_number" >> "$GITHUB_OUTPUT"
+
+      - name: Build and verify plugin jar
+        env:
+          ONE_MB_BUILD_JAVA_HOME: ${{ steps.build-java.outputs.path }}
+          ONE_MB_TEST_JAVA_HOME: ${{ steps.test-java.outputs.path }}
+        run: >-
+          ./build.sh --no-daemon
+          -PreleaseBuildNumber=${{ steps.build-number.outputs.value }}
+          clean build
+
+      - name: Upload plugin jar
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: 1MB-MapHide-${{ github.sha }}
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 14

@@ -7,6 +7,9 @@ docs_url: https://docs.1moreblock.com/custom-server-plugins/maphide/
 player_guide: player-guide.md
 technical_readme: ../README.md
 java_target: 25
-paper_target: 26.2
+paper_target: 26.3
+paper_build: 222
+paper_channel: STABLE
+paper_api: 26.3.build.222-stable
 official_project: true
 repository: mrfdev/1MB-MapHide

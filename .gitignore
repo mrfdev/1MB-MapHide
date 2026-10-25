@@ -116,3 +116,5 @@ run/
 build/
 servers/
 build/libs/
+__pycache__/
+.scratch/

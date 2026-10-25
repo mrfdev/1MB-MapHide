@@ -1,0 +1,59 @@
+import groovy.json.JsonSlurper
+import org.gradle.api.configuration.BuildFeatures
+import org.gradle.util.GradleVersion
+
+abstract class OracleSettingsFeatures implements Plugin<Settings> {
+	@Inject abstract BuildFeatures getBuildFeatures()
+
+	void apply(Settings settings) {
+		if (buildFeatures.configurationCache.requested.getOrElse(false)) {
+			throw new GradleException("Configuration caching is disabled so installed JDKs are validated on every invocation")
+		}
+	}
+}
+
+if (GradleVersion.current() < GradleVersion.version("9.8.0")) {
+	throw new GradleException("Oracle JDK 27 tests require installed Gradle 9.8.0+; run ./build.sh")
+}
+apply plugin: OracleSettingsFeatures
+
+def requiredProperties = [
+	"javaTarget": "25",
+	"buildJavaVersion": "25",
+	"testJavaVersion": "27",
+	"org.gradle.java.installations.auto-detect": "false",
+	"org.gradle.java.installations.auto-download": "false",
+	"org.gradle.java.installations.paths": "",
+	"org.gradle.java.installations.fromEnv": "ONE_MB_BUILD_JAVA_HOME,ONE_MB_TEST_JAVA_HOME"
+]
+requiredProperties.each { key, expected ->
+	String actual = providers.gradleProperty(key).orNull
+	String systemOverride = providers.systemProperty(key).orNull
+	if (actual != expected || (systemOverride != null && systemOverride != expected)) {
+		throw new GradleException("${key} must be '${expected}'; remove stale Gradle/command-line overrides and use ./build.sh")
+	}
+}
+if (new File(settingsDir, "gradle/gradle-daemon-jvm.properties").exists()) {
+	throw new GradleException("Remove stale gradle/gradle-daemon-jvm.properties; use ./build.sh for dynamic Oracle selection")
+}
+
+def probe = providers.exec {
+	commandLine "python3", new File(settingsDir, "scripts/java_toolchains.py").absolutePath, "--json"
+	ignoreExitValue = true
+}
+if (probe.result.get().exitValue != 0) {
+	throw new GradleException(probe.standardError.asText.get().trim())
+}
+def jdks = new JsonSlurper().parseText(probe.standardOutput.asText.get())
+["ONE_MB_BUILD_JAVA_HOME": jdks.build.home, "ONE_MB_TEST_JAVA_HOME": jdks.test.home].each { name, home ->
+	String configured = providers.environmentVariable(name).orNull
+	if (!configured || file(configured).canonicalPath != home) {
+		throw new GradleException("Use ./build.sh to resolve and export ${name} before starting Gradle")
+	}
+}
+if (System.getProperty("java.specification.version") != "25"
+		|| System.getProperty("java.vendor") != "Oracle Corporation"
+		|| file(System.getProperty("java.home")).canonicalPath != jdks.build.home) {
+	throw new GradleException("Gradle must run on validated Oracle JDK 25 at ${jdks.build.home}; use ./build.sh")
+}
+gradle.ext.oracleJdks = jdks
