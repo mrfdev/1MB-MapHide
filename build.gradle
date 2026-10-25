@@ -23,8 +23,12 @@ def releaseBuildNumber = new java.util.concurrent.atomic.AtomicReference<String>
 def pinnedBuildNumber = providers.gradleProperty("releaseBuildNumber")
 
 def maintainedServerDirs = [
-	file("servers/Paper-26.3")
+	file(providers.gradleProperty("localPaperServerDir").get())
 ]
+
+dependencyLocking {
+	lockAllConfigurations()
+}
 
 java {
 	toolchain {
@@ -199,8 +203,8 @@ tasks.register("verifyReleaseMetadata") {
 		if (paperApiVersion != expectedPaperApi) {
 			throw new GradleException("paperApiVersion ${paperApiVersion} does not match ${expectedPaperApi}")
 		}
-		if (!(paperChannel in ["STABLE", "BETA", "ALPHA"])) {
-			throw new GradleException("Paper release channel must explicitly select STABLE, BETA, or ALPHA")
+		if (paperChannel != "STABLE" || paperTarget != "26.3") {
+			throw new GradleException("The maintained target must remain Paper 26.3 STABLE")
 		}
 		if (!(paperSha256 ==~ /[0-9a-f]{64}/)) {
 			throw new GradleException("paperSha256 must pin the official server download checksum")
@@ -213,11 +217,17 @@ tasks.register("verifyReleaseMetadata") {
 		File workflow = file(".github/workflows/main.yml")
 		File pluginMetadata = file("src/main/resources/plugin.yml")
 		File buildInfoTemplate = file("src/main/resources/build-info.properties")
+		File agentGuidance = file("AGENTS.md")
 		String documentation = ([readme, installation, integrations] + fileTree("docs") {
 			include "*.md"
 		}).unique().collect { it.text }.join(System.lineSeparator())
 
 		[
+			(agentGuidance): [
+				"Paper ${paperTarget} build ${paperBuild} ${paperChannel}",
+				"`io.papermc.paper:paper-api:${paperApiVersion}`",
+				"-PreleaseBuildNumber=${buildNumber}"
+			],
 			(readme): [
 				"Version `${pluginVersion}`",
 				"JDK ${buildJavaVersion}",
@@ -243,7 +253,10 @@ tasks.register("verifyReleaseMetadata") {
 			],
 			(docsMetadata): [
 				"java_target: ${javaTarget}",
-				"paper_target: ${paperTarget}"
+				"paper_target: ${paperTarget}",
+				"paper_build: ${paperBuild}",
+				"paper_channel: ${paperChannel}",
+				"paper_api: ${paperApiVersion}"
 			],
 			(workflow): [
 				"java-version: '${buildJavaVersion}'",
@@ -280,6 +293,18 @@ tasks.register("verifyReleaseMetadata") {
 		while (releaseMatcher.find()) {
 			if (releaseMatcher.group(1) != pluginVersion) {
 				throw new GradleException("Stale documented semantic version: ${releaseMatcher.group(1)}")
+			}
+		}
+		def apiMatcher = documentation =~ /paper-api:(26\.[0-9.]+\.build\.\d+-[a-z]+)/
+		while (apiMatcher.find()) {
+			if (apiMatcher.group(1) != paperApiVersion) {
+				throw new GradleException("Stale documented Paper API: ${apiMatcher.group(1)}")
+			}
+		}
+		def channelMatcher = documentation =~ /Paper 26\.3 build (\d+) (alpha|beta|stable)/
+		while (channelMatcher.find()) {
+			if (channelMatcher.group(1) != paperBuild.toString() || channelMatcher.group(2) != "stable") {
+				throw new GradleException("Stale documented Paper release: ${channelMatcher.group(0)}")
 			}
 		}
 	}
@@ -346,64 +371,11 @@ tasks.register("verifyArtifactMetadata") {
 	}
 }
 
-tasks.register("verifyLocalPaperServer") {
+tasks.register("verifyLocalPaperServer", Exec) {
 	group = "verification"
-	description = "Checks the maintained local PaperScript config, Paper build, and saved SHA-256."
-
-	doLast {
-		File serverDir = file(providers.gradleProperty("localPaperServerDir").getOrElse("servers/Paper-26.3"))
-		File configFile = new File(serverDir, "paperscript/config.json")
-		File stateFile = new File(serverDir, "paperscript/state.json")
-		if (!configFile.isFile() || !stateFile.isFile()) {
-			logger.lifecycle("Skipping local Paper server verification: PaperScript state is not present")
-			return
-		}
-
-		def parser = new groovy.json.JsonSlurper()
-		Map config = parser.parse(configFile) as Map
-		Map state = parser.parse(stateFile) as Map
-		if (config.default_channel?.toString()?.toUpperCase() != paperChannel
-				|| config.check_latest_channel_only?.toString()?.toUpperCase() != paperChannel
-				|| config.allow_same_version_build_upgrade != true
-				|| (config.containsKey("download_filename_pattern")
-						&& config.download_filename_pattern != "Paper-{version}.jar")) {
-			throw new GradleException("Maintained PaperScript config does not match the explicit ${paperChannel} release channel")
-		}
-		if (state.current_version != paperTarget || state.current_build.toString().toInteger() != paperBuild) {
-			throw new GradleException("Maintained Paper server is not ${paperTarget} build ${paperBuild}")
-		}
-		if (state.current_channel != paperChannel || file(state.server_dir.toString()).canonicalFile != serverDir.canonicalFile) {
-			throw new GradleException("Maintained Paper state has a stale channel or server directory")
-		}
-
-		File paperJar = new File(serverDir, state.current_jar.toString())
-		if (!paperJar.isFile()) {
-			throw new GradleException("Maintained Paper jar is missing: ${paperJar}")
-		}
-		String actualSha256 = java.security.MessageDigest.getInstance("SHA-256")
-				.digest(paperJar.bytes)
-				.collect { String.format("%02x", it & 0xff) }
-				.join()
-		if (actualSha256 != state.current_sha256 || actualSha256 != paperSha256) {
-			throw new GradleException("Maintained Paper jar SHA-256 does not match PaperScript state and the pinned official checksum")
-		}
-		// Newer PaperScript records expected_sha256 for a staged upgrade, not the current jar.
-		if (state.staged_jar) {
-			File stagedJar = new File(serverDir, state.staged_jar.toString())
-			if (!stagedJar.isFile()) {
-				throw new GradleException("Staged Paper jar is missing: ${stagedJar}")
-			}
-			String stagedSha256 = java.security.MessageDigest.getInstance("SHA-256")
-					.digest(stagedJar.bytes).collect { String.format("%02x", it & 0xff) }.join()
-			if (stagedSha256 != state.staged_sha256 || stagedSha256 != state.expected_sha256) {
-				throw new GradleException("Staged Paper jar SHA-256 does not match PaperScript state")
-			}
-			logger.lifecycle("Verified separately staged ${stagedJar.name}; release tests still use ${paperJar.name}")
-		} else if (actualSha256 != state.expected_sha256) {
-			throw new GradleException("Maintained Paper jar SHA-256 does not match the expected download checksum")
-		}
-		logger.lifecycle("Verified Paper ${paperTarget} build ${paperBuild} ${paperChannel}: ${paperJar}")
-	}
+	description = "Checks the isolated development server against the stable build and checksum pins."
+	commandLine "python3", "scripts/paper_fixture.py", "verify",
+			"--server", providers.gradleProperty("localPaperServerDir").get()
 }
 
 tasks.register("testVerificationScripts", Exec) {
@@ -420,9 +392,14 @@ tasks.register("deployServers") {
 	doLast {
 		File builtJar = tasks.jar.archiveFile.get().asFile
 		maintainedServerDirs.each { File serverDir ->
-			if (new File(serverDir, "paperscript/locks/server-launch").exists()) {
-				throw new GradleException("Stop the maintained launcher before deploying: ${serverDir}")
+			def preflight = providers.exec {
+				commandLine "python3", "scripts/deploy_guard.py", serverDir.absolutePath
+				ignoreExitValue = true
 			}
+			if (preflight.result.get().exitValue != 0) {
+				throw new GradleException(preflight.standardError.asText.get().trim())
+			}
+			logger.lifecycle(preflight.standardOutput.asText.get().trim())
 			File pluginsDir = new File(serverDir, "plugins")
 			if (!pluginsDir.isDirectory()) {
 				logger.lifecycle("Skipping ${pluginsDir}: directory does not exist")
@@ -469,6 +446,7 @@ tasks.named("deployServers") {
 	mustRunAfter(tasks.named("check"))
 }
 
-tasks.named("build") {
-	dependsOn(tasks.named("deployServers"))
+// Deployment is explicit. A normal build must never modify an existing server.
+tasks.named("deployServers") {
+	dependsOn(tasks.named("check"), tasks.named("verifyLocalPaperServer"))
 }

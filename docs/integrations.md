@@ -34,12 +34,14 @@ The default `/map hide` alias is handled by MapHide itself and runs the same per
 
 ## Compatibility Notes
 
-The project is compiled with dynamically selected installed Oracle JDK 25 for Java 25 and `paper-api:26.3.build.41-alpha`. The maintained test target is Paper 26.3 build 41 alpha on installed Oracle JDK 27. The generated metadata declares `api-version: 26.3`; earlier Paper versions require an older MapHide release. Java 25 bytecode is retained without preview features. Automated Java tests use installed Oracle JDK 27.
+The project is compiled with dynamically selected installed Oracle JDK 25 for Java 25 and `paper-api:26.3.build.222-stable`. Automated Java tests run with installed Oracle JDK 27. The maintained test target is Paper 26.3 build 222 stable. The generated metadata declares `api-version: 26.3`; earlier Paper versions require an older MapHide release. Java 25 bytecode is retained without preview features.
 
-The new local fixture contains BlueMap runtime 5.27 / manifest version 5.26 (file `bluemap-5.27-paper.jar`), PlaceholderAPI 2.12.3, LuckPerms 5.5.85, CMI 9.8.10.1, CMILib 1.6.0.0, and Vault 1.7.3-CMI (file `Vault-1.7.4.jar`). CMI, CMILib, and Vault are disabled in the final local smoke fixture after a startup class-initialization deadlock involving CMILib and BlueMap; their configurations and data remain preserved. The passing maintained-server check covers MapHide, BlueMap, PlaceholderAPI, and LuckPerms. Only JARs were copied from the shared test server; existing project-local configurations and data were retained. MapHide does not dispatch LuckPerms commands or perform external player identity lookups.
+The isolated stable fixture uses BlueMap runtime 5.27 / manifest 5.26 (`bluemap-5.27-paper.jar`) and PlaceholderAPI 2.12.3, with fresh configuration and worlds. The smoke suite uses Oracle JDK 27, including operation without PlaceholderAPI and expected refusal to load without BlueMap. MapHide reads Bukkit permissions and targets BlueMap state by `Player#getUniqueId()`; it does not dispatch LuckPerms commands or perform external player identity lookups.
 
-See the [build 030 verification record](verification/2026-09-25-paper-26.3.md) for exact checksums, runtime results, third-party notices, and manual checks.
+Connected-player behavior, asynchronous placeholder consumers, and the complete LuckPerms/CMI/CMILib/Vault stack require manual integration checks. The earlier CMI/BlueMap startup deadlock remains historical evidence, not a stable-build test result. See the [stable verification record](verification/2026-10-25-paper-26.3-stable-222.md) for results and manual steps. MapHide uses the Bukkit scheduler and does not claim verified Folia compatibility.
 
 ### Historical verification
 
 Version 2.0.1 build 029 remains preserved at `v2.0.1-paper-26.2`. Its [Java 25/26 verification record](verification/2026-09-15-jdk-update.md) applies only to that baseline and its Paper 26.2 environment.
+
+The [2026-09-25 record](verification/2026-09-25-paper-26.3.md) describes the previous experimental 26.3 environment.

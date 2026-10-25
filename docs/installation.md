@@ -5,9 +5,9 @@
 - Paper server with BlueMap installed.
 - Installed Oracle JDK 25 for Gradle and compilation, targeting Java 25 bytecode.
 - Installed Oracle JDK 27 for all automated Java tests and Paper runtime verification.
-- Installed Gradle 9.8.0+ and Python 3.11+ on PATH.
-- Paper 26.3 build 41 alpha is the maintained compile and release-test target.
-- The exact compile coordinate is `io.papermc.paper:paper-api:26.3.build.41-alpha`.
+- Installed Gradle 9.8.0+ and Python 3.11+ on PATH for build and fixture verification.
+- Paper 26.3 build 222 stable is the maintained compile and release-test target.
+- The exact compile coordinate is `io.papermc.paper:paper-api:26.3.build.222-stable`.
 - BlueMapAPI `de.bluecolored:bluemap-api:2.8.0` and PlaceholderAPI `me.clip:placeholderapi:2.12.3` are resolved from their official Maven repositories.
 - PlaceholderAPI is optional.
 
@@ -51,7 +51,7 @@ Existing `config.yml` values are preserved. Missing defaults and managed comment
 The normal local build command is:
 
 ```sh
-./build.sh --no-daemon -PreleaseBuildNumber=030 clean build verifyLocalPaperServer
+./build.sh --no-daemon -PreleaseBuildNumber=031 clean build
 ```
 
 The jar name follows this pattern:
@@ -60,11 +60,11 @@ The jar name follows this pattern:
 1MB-BlueMap-MapHide-v2.0.2-<build>-j25-26.3.jar
 ```
 
-`2.0.2` is the plugin version. The three-digit build number is stored in `build-number.txt`. An unpinned artifact build advances it once; `-PreleaseBuildNumber=030` makes release retries reuse build `030`. The `j25` and `26.3` parts identify the Java bytecode and Paper target.
+`2.0.2` is the plugin version. The three-digit build number is stored in `build-number.txt`. An unpinned artifact build advances it once; `-PreleaseBuildNumber=031` makes release retries reuse build `031`. The `j25` and `26.3` parts identify the Java bytecode and Paper target.
 
-The Gradle deploy task copies the jar only into the maintained local `servers/Paper-26.3/plugins/` folder and appends `.disabled` to older active MapHide jars.
+A normal build does not deploy or start any server. `deployServers` explicitly copies the jar into the stopped `servers/Paper-26.3-stable-222/plugins/` fixture and appends `.disabled` to older active MapHide JARs. The `localPaperServerDir` Gradle property selects the development fixture for both verification and explicit deployment. Never point it at production.
 
-The local server folder is not required to compile or package the plugin. It is only used by `deployServers` and `verifyLocalPaperServer`.
+Deployment preflight rejects a PaperScript launcher lock or a direct Java process using the fixture directory. It requires `lsof` and refuses deployment if process inspection fails. Keep the fixture stopped throughout deployment; the check does not coordinate with an external launcher starting concurrently.
 
 `build.sh` is a local launcher for the already installed Gradle, not a downloading Gradle wrapper. It resolves `/usr/libexec/java_home -F -v 25` and `/usr/libexec/java_home -F -v 27` on every invocation, probes each installation's actual major version, Oracle Corporation vendor and matching `javac`, then sets Gradle's `JAVA_HOME` and daemon home to Oracle JDK 25. The shell's default Java does not select the build runtime.
 
@@ -75,36 +75,40 @@ To select a particular installed patch or use another machine, set `ONE_MB_BUILD
 ```sh
 ONE_MB_BUILD_JAVA_HOME="$(/usr/libexec/java_home -F -v 25)" \
 ONE_MB_TEST_JAVA_HOME="$(/usr/libexec/java_home -F -v 27)" \
-./build.sh --no-daemon -PreleaseBuildNumber=030 clean build
+./build.sh --no-daemon -PreleaseBuildNumber=031 clean build
 ```
 
 Automatic Gradle toolchain discovery and downloads are disabled. Toolchains come only from the two validated environment variables. Settings reject conflicting project/system properties, alternate installation paths, and wrong bytecode targets before resolving toolchains. The launcher pins the Gradle daemon home and rejects JDK command-line overrides; use the two environment variables instead. Stale `gradle/gradle-daemon-jvm.properties` files are rejected because daemon criteria override `JAVA_HOME`. Configuration caching is disabled so validation runs each time. Raw `gradle` invocations must already have the same validated homes exported and run on Oracle 25; use `build.sh` for normal builds.
 
-`./build.sh check` runs JDK selection, release/documentation drift checks, artifact/bytecode validation, Java toolchain regression tests, and Python resolver/smoke-selection regression tests. The Java tests execute a real Gradle test worker and a child JVM on Oracle 27 and inspect Java 25 class headers in plugin and test classes. Paper integration tests remain the separate smoke command below. The local GitHub Actions definition uses Oracle 25/27, Gradle 9.8.2, and the same launcher with explicit installed-home overrides from its setup steps. No remote CI run was triggered for this local change.
+`./build.sh check` runs JDK selection, release/documentation drift checks, artifact/bytecode validation, Java toolchain regression tests, and Python fixture/resolver regression tests. The Java tests execute a real Gradle test worker and a child JVM on Oracle 27 and inspect Java 25 class headers in plugin and test classes. Paper integration tests remain the separate smoke command below. The local GitHub Actions definition uses Oracle 25/27, Gradle 9.8.2, and the same launcher with explicit installed-home overrides from its setup steps. No remote CI run was triggered for this local change.
 
 The selected Gradle must support Java 27 toolchains, which starts at 9.8.0 in the [official compatibility matrix](https://docs.gradle.org/current/userguide/compatibility.html). Toolchain tasks use the [official Gradle compiler and launcher APIs](https://docs.gradle.org/current/userguide/toolchains.html). See the [local verification record](verification/2026-10-25-oracle-toolchains.md) for the installed versions used.
 
-`./build.sh verifyLocalPaperServer` validates PaperScript's explicitly selected ALPHA channel, Paper build, server directory, installed jar, and both saved and pinned official SHA-256. Newer PaperScript stores a staged upgrade's checksum separately from the current jar. Both are checked without promoting the staged build. `-PlocalPaperServerDir=/path/to/fixture` selects an alternate verification fixture without changing the deployment destination.
+Paper API, BlueMap API, and PlaceholderAPI versions are pinned in `gradle.properties`; resolved transitive dependencies are recorded in `gradle.lockfile`. There is no paperweight/dev-bundle dependency or NMS use. Update the pins from official metadata and refresh the lock deliberately with `--write-locks` when upgrading.
+
+Check `python3 --version` before building; Python 3.11 or newer must be on PATH for checksum verification and the JDK resolver.
 
 ## Runtime Verification
 
-After the full build, run:
+Prepare the stable fixture once, then verify and test it:
 
 ```sh
+python3 scripts/paper_fixture.py prepare
+./build.sh --no-daemon verifyLocalPaperServer
 python3 scripts/smoke-test.py
 ```
 
-The script requires Python 3.11 or newer and the maintained `servers/Paper-26.3` fixture: Paper build 41 ALPHA, its existing accepted EULA, cached server files/world, `bluemap-5.27-paper.jar` (runtime 5.27, manifest 5.26), cached BlueMap assets, and PlaceholderAPI 2.12.3. It copies these into a fresh timestamped `servers/verification/` directory. The Minecraft listener binds to localhost on an available port; the copied BlueMap HTTP listener, RCON, and query listener are disabled. Only MapHide, BlueMap, and PlaceholderAPI are copied into this isolated smoke fixture, keeping external messaging integrations inactive.
+The preparer and smoke script both default to `localPaperServerDir`, currently `servers/Paper-26.3-stable-222`. Preparation refuses existing destinations. It checks the exact Fill build's STABLE channel, build ID, download size, and pinned SHA-256. `paper-release.json` records the verified build and source plugin checksums. `verifyLocalPaperServer` fails if the fixture is absent, has stale release metadata, or its JAR checksum differs from the release pin. It never silently skips verification.
 
-The runtime is installed Oracle JDK 27, discovered using `java_home -F -v 27` or selected with `ONE_MB_TEST_JAVA_HOME`. Repeat `--java-home` to select installed Oracle 27 patches, use `--server` for another fixture, and `--output` for a new results directory. Other vendors and majors are rejected. The script validates runtime, artifact, channel, and official Paper checksum, then checks loading, BlueMap readiness, version/status/help/debug commands, console-only guards, missing players, invalid input, PlaceholderAPI values, config edits and reloads, comment/custom-key preservation, and graceful shutdown with exit code 0. Logs and a JSON report are retained. A failed expectation, server error, or shutdown timeout fails the run.
+Provisioning requires a source test fixture with an already accepted Minecraft EULA, already accepted BlueMap resource terms, one BlueMap runtime JAR and one PlaceholderAPI JAR. By default it reads `servers/Paper-26.3`; use `--fixtures /path/to/test-fixture` for another. It copies only binaries, runtime caches, the accepted EULA, and cached Minecraft client assets. Fresh configuration disables HTTP, RCON, query, telemetry, and external integrations. Worlds, player records, credentials, and other plugins' configuration are not imported. `--server /new/path` prepares a different new destination; use the matching `-PlocalPaperServerDir=/new/path` and smoke `--server /new/path` for verification.
 
-The optional CMI, CMILib, and Vault JARs are disabled in the maintained fixture after a third-party startup deadlock. Their data remains intact; see the verification record before re-enabling them. DiscordSRV is absent and other external messaging integrations stay inactive.
+The smoke script copies this stable fixture into a new timestamped `servers/verification/` directory and generates disposable worlds. Minecraft binds to localhost on an available port. It checks the release artifact and server checksum, plugin loading, BlueMap readiness, info/status/help/debug commands, player-only guards, missing players, invalid selectors/pages/config keys, PlaceholderAPI values, config edits/reloads, preserved comments/custom keys, and clean shutdown. It then restarts the same disposable world to verify persisted nondefault settings. Further lifecycles verify operation without PlaceholderAPI and the expected missing-BlueMap dependency rejection. Unexpected errors, linkage failures, shutdown timeouts, or nonzero exits fail the run; JSON results and separate console logs survive failures.
 
-The maintained launcher `servers/Paper-26.3/1MB-minecraft.sh` selects Java 27 and Paper 26.3. Its PaperScript session name is `maphide-26-3-030`. Minecraft TCP uses `52227`; reserved query UDP, RCON TCP, and BlueMap HTTP ports are `52228`, `52229`, and `52230` respectively (those listeners are disabled for smoke testing). Check availability before subsequent manual launches. Start from this directory with `./1MB-minecraft.sh` and stop through the console with `stop`.
+The default runtime is the installed Oracle JDK 27 discovered with `java_home -F -v 27`, or `ONE_MB_TEST_JAVA_HOME` when set. Repeat `--java-home /path/to/jdk` to choose other installed Oracle 27 patches (other vendors or majors are rejected), and use `--output /new/results/path` to select a new output directory. Tests stop every process they start. No existing launcher, shared test server, or production service is started or stopped.
 
-`servers/Paper-26.2` remains untouched rollback material. Its annotated tag is `v2.0.1-paper-26.2`. The new ALPHA target is deliberate; neither the build nor the launcher falls back to Paper 26.2. Use PaperScript's explicit `download --version 26.3 --build 41 --channel ALPHA` command for this pin; its `update` shortcut selects stable builds and is not the release workflow.
+`servers/Paper-26.3-stable` (build 175), `servers/Paper-26.3`, and `servers/Paper-26.2` remain historical fixtures. Their old launchers are not the current stable development workflow. The Paper 26.2 baseline is also preserved at `v2.0.1-paper-26.2`. Current verification is recorded in the [build 222 report](verification/2026-10-25-paper-26.3-stable-222.md).
 
-These are local console smoke tests. Player joins, actual marker toggles, forced player permissions, and timer expiry require a connected player and are outside this automated check.
+These are console integration tests. Actual player marker changes, permission denials, forced permission conflicts, timer expiry, reconnects, and the full third-party stack need the [manual checks](verification/2026-10-11-paper-26.3-stable.md#manual-verification). Inventories, item metadata, economy transactions, and LuckPerms command delivery are not MapHide features.
 
 ## Readiness Check
 

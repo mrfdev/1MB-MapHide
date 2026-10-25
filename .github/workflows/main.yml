@@ -38,6 +38,9 @@ jobs:
           gradle-version: '9.8.2'
           cache-provider: basic
 
+      - name: Verify Python runtime for fixture tests
+        run: python3 -c 'import sys; assert sys.version_info >= (3, 11), "Python 3.11+ required"'
+
       - name: Read release build number
         id: build-number
         shell: bash
