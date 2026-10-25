@@ -18,3 +18,8 @@ This repository uses the single-context domain-doc layout. See `docs/agents/doma
 - Run `python3 scripts/smoke-test.py` after building. It resolves and validates installed Oracle JDK 27 independently and uses disposable localhost servers. See `docs/installation.md`, `docs/verification/2026-10-25-oracle-toolchains.md`, and `docs/verification/2026-10-25-paper-26.3-stable-222.md` for the workflow and verification evidence. Historical records describe their original targets.
 - Read the live Paper LLM index, official docs, roadmap, and exact target Javadocs for future upgrades. Pin the server checksum and actual channel, and review compiler deprecations and exploit-protection defaults.
 - The shared test server must stay stopped during artifact replacement. Match this project's `1MB-MapHide` plugin identity and main class, replace only its JARs with backups and checksum verification, and never launch the shared server as part of deployment.
+
+## GitHub Actions
+
+- `.github/workflows/main.yml` runs the build and automated tests on pushes, pull requests, and manual dispatch; it does not deploy or start servers. Verify automatic CI by querying the exact pushed commit with `gh run list --workflow main.yml --commit "$(git rev-parse HEAD)" --event push` and checking its final conclusion.
+- New GitHub forks require activation of inherited workflows in the signed-in Actions tab. This fork was activated on 2026-10-25. An `enabled` Actions permission, an `active` workflow, or a successful manual dispatch alone does not prove automatic triggers work. See `docs/installation.md#github-actions`.

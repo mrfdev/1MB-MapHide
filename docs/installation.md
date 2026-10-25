@@ -80,13 +80,28 @@ ONE_MB_TEST_JAVA_HOME="$(/usr/libexec/java_home -F -v 27)" \
 
 Automatic Gradle toolchain discovery and downloads are disabled. Toolchains come only from the two validated environment variables. Settings reject conflicting project/system properties, alternate installation paths, and wrong bytecode targets before resolving toolchains. The launcher pins the Gradle daemon home and rejects JDK command-line overrides; use the two environment variables instead. Stale `gradle/gradle-daemon-jvm.properties` files are rejected because daemon criteria override `JAVA_HOME`. Configuration caching is disabled so validation runs each time. Raw `gradle` invocations must already have the same validated homes exported and run on Oracle 25; use `build.sh` for normal builds.
 
-`./build.sh check` runs JDK selection, release/documentation drift checks, artifact/bytecode validation, Java toolchain regression tests, and Python fixture/resolver regression tests. The Java tests execute a real Gradle test worker and a child JVM on Oracle 27 and inspect Java 25 class headers in plugin and test classes. Paper integration tests remain the separate smoke command below. The local GitHub Actions definition uses Oracle 25/27, Gradle 9.8.2, and the same launcher with explicit installed-home overrides from its setup steps. No remote CI run was triggered for this local change.
+`./build.sh check` runs JDK selection, release/documentation drift checks, artifact/bytecode validation, Java toolchain regression tests, and Python fixture/resolver regression tests. The Java tests execute a real Gradle test worker and a child JVM on Oracle 27 and inspect Java 25 class headers in plugin and test classes. Paper integration tests remain the separate smoke command below.
 
 The selected Gradle must support Java 27 toolchains, which starts at 9.8.0 in the [official compatibility matrix](https://docs.gradle.org/current/userguide/compatibility.html). Toolchain tasks use the [official Gradle compiler and launcher APIs](https://docs.gradle.org/current/userguide/toolchains.html). See the [local verification record](verification/2026-10-25-oracle-toolchains.md) for the installed versions used.
 
 Paper API, BlueMap API, and PlaceholderAPI versions are pinned in `gradle.properties`; resolved transitive dependencies are recorded in `gradle.lockfile`. There is no paperweight/dev-bundle dependency or NMS use. Update the pins from official metadata and refresh the lock deliberately with `--write-locks` when upgrading.
 
 Check `python3 --version` before building; Python 3.11 or newer must be on PATH for checksum verification and the JDK resolver.
+
+## GitHub Actions
+
+`.github/workflows/main.yml` runs on pushes, pull requests, and manual dispatch. It sets up Oracle 25/27 and Gradle 9.8.2, then uses the same launcher with explicit installed-home overrides and the checked-in release build number. CI runs `clean build` and uploads the plugin artifact. It does not deploy or start Paper servers.
+
+GitHub disables inherited workflows on new forks until a maintainer enables them from the fork's **Actions** tab. If the page shows **Workflows aren't being run on this forked repository**, review the workflows and select **I understand my workflows, go ahead and enable them**. This activation was completed for `mrfdev/1MB-MapHide` on 2026-10-25. Before activation, GitHub recorded the push but created no build run, even though the Actions permissions API reported `enabled: true`, the workflow reported `active`, and a manual dispatch succeeded. See [GitHub's fork workflow documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflows-in-forked-repositories).
+
+After pushing, verify an automatic run for the exact commit from the repository root:
+
+```sh
+gh run list --workflow main.yml --commit "$(git rev-parse HEAD)" --event push \
+  --json databaseId,headSha,event,status,conclusion,url
+```
+
+Wait for that run to complete successfully. An empty result means no push run was created; a successful `workflow_dispatch` run alone does not verify the push trigger. Identify the workflow by `main.yml` because GitHub may display its name from the default branch, which still calls it Java CI with Maven.
 
 ## Runtime Verification
 
