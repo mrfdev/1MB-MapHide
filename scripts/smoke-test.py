@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the release jar on Java 27 in an isolated local Paper 26.3 copy."""
+"""Exercise Paper in disposable localhost servers using installed Oracle JDK 27."""
 
 import argparse
 from datetime import datetime, timezone
@@ -15,10 +15,18 @@ import threading
 import time
 import zipfile
 
+from java_toolchains import resolve_jdk
+
 
 ROOT = Path(__file__).resolve().parents[1]
-JAVA_ROOT = Path("/Library/Java/JavaVirtualMachines")
-RUNTIME_VERSION = "27"
+
+
+def resolve_test_runtimes(java_homes=None):
+    """Validate every requested runtime before creating a disposable server."""
+    if java_homes:
+        return [resolve_jdk(27, override=str(home)) for home in java_homes]
+    return [resolve_jdk(27)]
+
 
 
 def properties(text):
@@ -89,11 +97,15 @@ def prepare_server(source, destination, artifact, metadata):
 
 
 def run_server(directory, java_home, version, metadata):
+    jdk = resolve_jdk(27, override=str(java_home))
+    java_home = Path(jdk["home"])
+    if jdk["version"] != version:
+        raise RuntimeError(f"Java runtime changed after preflight: {version} -> {jdk['version']}")
     env = dict(os.environ, JAVA_HOME=str(java_home))
     env["PATH"] = str(java_home / "bin") + os.pathsep + env.get("PATH", "")
-    runtime = subprocess.run(["java", "-version"], env=env, text=True,
+    runtime = subprocess.run([jdk["java"], "-version"], env=env, text=True,
                              capture_output=True, check=True).stderr.strip()
-    if f'java version "{version}"' not in runtime:
+    if not re.search(rf'(?:java|openjdk) version "{re.escape(version)}"', runtime):
         raise RuntimeError(f"Expected Java {version}: {runtime}")
     (directory / "java-version.txt").write_text(runtime + "\n")
     print(f"Starting Paper {metadata['paperTarget']} build {metadata['paperBuild']} on {version}", flush=True)
@@ -108,7 +120,7 @@ def run_server(directory, java_home, version, metadata):
     bluemap_plugin_version = re.search(r"(?m)^version:\s*['\"]?([^'\"\s]+)", manifest).group(1)
     with (directory / "console.log").open("w") as log:
         process = subprocess.Popen(
-            ["java", "-Xms512M", "-Xmx2G", "-XX:ActiveProcessorCount=4",
+            [jdk["java"], "-Xms512M", "-Xmx2G", "-XX:ActiveProcessorCount=4",
              "-Dfile.encoding=UTF-8", "-Dterminal.ansi=false", "-Dterminal.jline=false",
              "-Dapple.awt.UIElement=true", "-jar", "paper.jar", "--nogui"],
             cwd=directory, env=env, text=True, stdin=subprocess.PIPE,
@@ -203,7 +215,7 @@ def run_server(directory, java_home, version, metadata):
             r"(?:/|\s)(?:ERROR|SEVERE)\]|Exception|UnsupportedClassVersionError|NoClassDefFoundError|NoSuchMethodError", line)]
         if failures:
             raise RuntimeError("Errors in server log:\n" + "\n".join(failures))
-    return {"runtime": runtime, "checks": checks, "exit_code": process.returncode,
+    return {"runtime": runtime, "java_toolchain": jdk, "checks": checks, "exit_code": process.returncode,
             "console_log": str(directory / "console.log")}
 
 
@@ -211,9 +223,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--server", type=Path, default=ROOT / "servers/Paper-26.3")
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--java27-home", type=Path,
-                        default=JAVA_ROOT / "jdk-27.jdk/Contents/Home")
+    parser.add_argument("--java-home", type=Path, action="append",
+                        help="Installed Oracle JDK 27 home; repeat for multiple Oracle 27 installations. "
+                             "Defaults to ONE_MB_TEST_JAVA_HOME or macOS java_home -F -v 27.")
     args = parser.parse_args()
+    runtimes = resolve_test_runtimes(args.java_home)
     config = properties((ROOT / "gradle.properties").read_text())
     build = (ROOT / "build-number.txt").read_text().strip()
     artifact = ROOT / "build/libs" / (
@@ -225,12 +239,18 @@ def main():
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     output = (args.output or ROOT / f"servers/verification/build-{build}-{stamp}").resolve()
     output.mkdir(parents=True, exist_ok=False)
-    report = {"artifact": str(artifact), "sha256": sha256(artifact), "metadata": metadata, "runs": []}
-    directory = output / f"java-{RUNTIME_VERSION}"
-    report["paper_sha256"] = prepare_server(args.server.resolve(), directory, artifact, metadata)
-    report["runs"].append(run_server(directory, args.java27_home.resolve(), RUNTIME_VERSION, metadata))
-    (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
-    print(f"PASS: Java {RUNTIME_VERSION}. Results: {output / 'results.json'}", flush=True)
+    report = {"artifact": str(artifact), "sha256": sha256(artifact), "metadata": metadata,
+              "java_toolchains": runtimes, "runs": []}
+    try:
+        for index, jdk in enumerate(runtimes, start=1):
+            java_home = Path(jdk["home"])
+            version = jdk["version"]
+            directory = output / f"java-{version}-{index}"
+            report["paper_sha256"] = prepare_server(args.server.resolve(), directory, artifact, metadata)
+            report["runs"].append(run_server(directory, java_home, version, metadata))
+    finally:
+        (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
+    print(f"PASS: {len(report['runs'])} server lifecycles. Results: {output / 'results.json'}", flush=True)
 
 
 if __name__ == "__main__":

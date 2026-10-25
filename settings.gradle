@@ -5,6 +5,9 @@ pluginManagement {
 	}
 }
 
+// Validate before Java plugins can resolve or provision a toolchain.
+apply from: file("gradle/oracle-jdks.settings.gradle")
+
 dependencyResolutionManagement {
 	repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
 	repositories {

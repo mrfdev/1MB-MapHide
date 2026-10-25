@@ -116,3 +116,4 @@ run/
 build/
 servers/
 build/libs/
+.scratch/

@@ -34,7 +34,7 @@ The default `/map hide` alias is handled by MapHide itself and runs the same per
 
 ## Compatibility Notes
 
-The project is compiled with JDK 25.0.4.1 for Java 25 and `paper-api:26.3.build.41-alpha`. The maintained test target is Paper 26.3 build 41 alpha on Java 27 (`27+35-2325`). The generated metadata declares `api-version: 26.3`; earlier Paper versions require an older MapHide release. Java 25 bytecode is retained without preview features.
+The project is compiled with dynamically selected installed Oracle JDK 25 for Java 25 and `paper-api:26.3.build.41-alpha`. The maintained test target is Paper 26.3 build 41 alpha on installed Oracle JDK 27. The generated metadata declares `api-version: 26.3`; earlier Paper versions require an older MapHide release. Java 25 bytecode is retained without preview features. Automated Java tests use installed Oracle JDK 27.
 
 The new local fixture contains BlueMap runtime 5.27 / manifest version 5.26 (file `bluemap-5.27-paper.jar`), PlaceholderAPI 2.12.3, LuckPerms 5.5.85, CMI 9.8.10.1, CMILib 1.6.0.0, and Vault 1.7.3-CMI (file `Vault-1.7.4.jar`). CMI, CMILib, and Vault are disabled in the final local smoke fixture after a startup class-initialization deadlock involving CMILib and BlueMap; their configurations and data remain preserved. The passing maintained-server check covers MapHide, BlueMap, PlaceholderAPI, and LuckPerms. Only JARs were copied from the shared test server; existing project-local configurations and data were retained. MapHide does not dispatch LuckPerms commands or perform external player identity lookups.
 

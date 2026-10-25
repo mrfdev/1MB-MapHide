@@ -3,8 +3,9 @@
 ## Requirements
 
 - Paper server with BlueMap installed.
-- Java 25 bytecode, built with JDK 25.0.4.1.
-- Tested server runtime: Java 27 (`27+35-2325`).
+- Installed Oracle JDK 25 for Gradle and compilation, targeting Java 25 bytecode.
+- Installed Oracle JDK 27 for all automated Java tests and Paper runtime verification.
+- Installed Gradle 9.8.0+ and Python 3.11+ on PATH.
 - Paper 26.3 build 41 alpha is the maintained compile and release-test target.
 - The exact compile coordinate is `io.papermc.paper:paper-api:26.3.build.41-alpha`.
 - BlueMapAPI `de.bluecolored:bluemap-api:2.8.0` and PlaceholderAPI `me.clip:placeholderapi:2.12.3` are resolved from their official Maven repositories.
@@ -50,9 +51,7 @@ Existing `config.yml` values are preserved. Missing defaults and managed comment
 The normal local build command is:
 
 ```sh
-export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-25.0.4.1.jdk/Contents/Home
-export PATH="$JAVA_HOME/bin:$PATH"
-gradle --no-daemon -PreleaseBuildNumber=030 clean build verifyLocalPaperServer
+./build.sh --no-daemon -PreleaseBuildNumber=030 clean build verifyLocalPaperServer
 ```
 
 The jar name follows this pattern:
@@ -67,9 +66,25 @@ The Gradle deploy task copies the jar only into the maintained local `servers/Pa
 
 The local server folder is not required to compile or package the plugin. It is only used by `deployServers` and `verifyLocalPaperServer`.
 
-`gradle check` runs JDK selection, release-documentation, generated-artifact, and test tasks. The repository currently has no unit-test sources, so Gradle reports `test NO-SOURCE`; CI includes the task so future tests are not skipped. Compilation and test toolchains come from `JAVA_HOME`, with automatic discovery/download disabled. `verifyBuildJava` requires the configured JDK 25.0.4.1 for Gradle, the compiler, and the test launcher. CI installs that exact Oracle JDK and runs `clean build`.
+`build.sh` is a local launcher for the already installed Gradle, not a downloading Gradle wrapper. It resolves `/usr/libexec/java_home -F -v 25` and `/usr/libexec/java_home -F -v 27` on every invocation, probes each installation's actual major version, Oracle Corporation vendor and matching `javac`, then sets Gradle's `JAVA_HOME` and daemon home to Oracle JDK 25. The shell's default Java does not select the build runtime.
 
-`gradle verifyLocalPaperServer` validates PaperScript's explicitly selected ALPHA channel, Paper build, server directory, installed jar, and both saved and pinned official SHA-256. Newer PaperScript stores a staged upgrade's checksum separately from the current jar. Both are checked without promoting the staged build. `-PlocalPaperServerDir=/path/to/fixture` selects an alternate verification fixture without changing the deployment destination.
+All `JavaCompile` tasks, including test sources, explicitly select Oracle JDK 25 and `--release 25`. All `Test` tasks explicitly select Oracle JDK 27; their `JAVA_HOME` and `PATH` also select JDK 27 for child Java processes. `./build.sh --no-daemon verifyBuildJava` reports the actual paths, versions and vendors. Missing or invalid JDKs fail before any build tasks run.
+
+To select a particular installed patch or use another machine, set `ONE_MB_BUILD_JAVA_HOME` and `ONE_MB_TEST_JAVA_HOME` to the installed Oracle homes. Both overrides undergo the same checks. For example, without embedding patch-version folders:
+
+```sh
+ONE_MB_BUILD_JAVA_HOME="$(/usr/libexec/java_home -F -v 25)" \
+ONE_MB_TEST_JAVA_HOME="$(/usr/libexec/java_home -F -v 27)" \
+./build.sh --no-daemon -PreleaseBuildNumber=030 clean build
+```
+
+Automatic Gradle toolchain discovery and downloads are disabled. Toolchains come only from the two validated environment variables. Settings reject conflicting project/system properties, alternate installation paths, and wrong bytecode targets before resolving toolchains. The launcher pins the Gradle daemon home and rejects JDK command-line overrides; use the two environment variables instead. Stale `gradle/gradle-daemon-jvm.properties` files are rejected because daemon criteria override `JAVA_HOME`. Configuration caching is disabled so validation runs each time. Raw `gradle` invocations must already have the same validated homes exported and run on Oracle 25; use `build.sh` for normal builds.
+
+`./build.sh check` runs JDK selection, release/documentation drift checks, artifact/bytecode validation, Java toolchain regression tests, and Python resolver/smoke-selection regression tests. The Java tests execute a real Gradle test worker and a child JVM on Oracle 27 and inspect Java 25 class headers in plugin and test classes. Paper integration tests remain the separate smoke command below. The local GitHub Actions definition uses Oracle 25/27, Gradle 9.8.2, and the same launcher with explicit installed-home overrides from its setup steps. No remote CI run was triggered for this local change.
+
+The selected Gradle must support Java 27 toolchains, which starts at 9.8.0 in the [official compatibility matrix](https://docs.gradle.org/current/userguide/compatibility.html). Toolchain tasks use the [official Gradle compiler and launcher APIs](https://docs.gradle.org/current/userguide/toolchains.html). See the [local verification record](verification/2026-10-25-oracle-toolchains.md) for the installed versions used.
+
+`./build.sh verifyLocalPaperServer` validates PaperScript's explicitly selected ALPHA channel, Paper build, server directory, installed jar, and both saved and pinned official SHA-256. Newer PaperScript stores a staged upgrade's checksum separately from the current jar. Both are checked without promoting the staged build. `-PlocalPaperServerDir=/path/to/fixture` selects an alternate verification fixture without changing the deployment destination.
 
 ## Runtime Verification
 
@@ -81,7 +96,7 @@ python3 scripts/smoke-test.py
 
 The script requires Python 3.11 or newer and the maintained `servers/Paper-26.3` fixture: Paper build 41 ALPHA, its existing accepted EULA, cached server files/world, `bluemap-5.27-paper.jar` (runtime 5.27, manifest 5.26), cached BlueMap assets, and PlaceholderAPI 2.12.3. It copies these into a fresh timestamped `servers/verification/` directory. The Minecraft listener binds to localhost on an available port; the copied BlueMap HTTP listener, RCON, and query listener are disabled. Only MapHide, BlueMap, and PlaceholderAPI are copied into this isolated smoke fixture, keeping external messaging integrations inactive.
 
-The runtime is `/Library/Java/JavaVirtualMachines/jdk-27.jdk/Contents/Home`. Use `--java27-home` for an equivalent installation, `--server` for another fixture, and `--output` for a new results directory. The script validates runtime, artifact, channel, and official Paper checksum, then checks loading, BlueMap readiness, version/status/help/debug commands, console-only guards, missing players, invalid input, PlaceholderAPI values, config edits and reloads, comment/custom-key preservation, and graceful shutdown with exit code 0. Logs and a JSON report are retained. A failed expectation, server error, or shutdown timeout fails the run.
+The runtime is installed Oracle JDK 27, discovered using `java_home -F -v 27` or selected with `ONE_MB_TEST_JAVA_HOME`. Repeat `--java-home` to select installed Oracle 27 patches, use `--server` for another fixture, and `--output` for a new results directory. Other vendors and majors are rejected. The script validates runtime, artifact, channel, and official Paper checksum, then checks loading, BlueMap readiness, version/status/help/debug commands, console-only guards, missing players, invalid input, PlaceholderAPI values, config edits and reloads, comment/custom-key preservation, and graceful shutdown with exit code 0. Logs and a JSON report are retained. A failed expectation, server error, or shutdown timeout fails the run.
 
 The optional CMI, CMILib, and Vault JARs are disabled in the maintained fixture after a third-party startup deadlock. Their data remains intact; see the verification record before re-enabling them. DiscordSRV is absent and other external messaging integrations stay inactive.
 

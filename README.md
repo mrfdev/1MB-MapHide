@@ -136,8 +136,9 @@ PlaceholderAPI is optional. When installed, 1MB-MapHide registers:
 
 Requirements:
 
-- Gradle 9.6.1 or newer
-- JDK 25.0.4.1 at `/Library/Java/JavaVirtualMachines/jdk-25.0.4.1.jdk/Contents/Home`
+- Installed Gradle 9.8.0 or newer
+- Python 3.11 or newer on PATH
+- Installed Oracle JDK 25 for Gradle and compilation, and Oracle JDK 27 for automated tests
 - The exact Maven dependency `io.papermc.paper:paper-api:26.3.build.41-alpha`
 - The Maven dependencies `de.bluecolored:bluemap-api:2.8.0` and `me.clip:placeholderapi:2.12.3`
 
@@ -146,9 +147,7 @@ A clean checkout can compile without a local Paper server. The local `servers/Pa
 Build release `030` and deploy it to the maintained Paper 26.3 test server:
 
 ```sh
-export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-25.0.4.1.jdk/Contents/Home
-export PATH="$JAVA_HOME/bin:$PATH"
-gradle --no-daemon -PreleaseBuildNumber=030 clean build verifyLocalPaperServer
+./build.sh --no-daemon -PreleaseBuildNumber=030 clean build verifyLocalPaperServer
 ```
 
 Jars are named like:
@@ -159,11 +158,11 @@ Jars are named like:
 
 The plugin version comes from `gradle.properties`. The three-digit build number is stored in `build-number.txt` and advances for a new unpinned jar build. Pin `releaseBuildNumber` when repeating a release build so retries reuse the intended number instead of incrementing it again. The Java and Paper parts of the jar name are target identifiers, not the semantic plugin version.
 
-`verifyBuildJava` checks that Gradle, the compiler, and the test launcher use JDK 25.0.4.1 from `JAVA_HOME`. `verifyReleaseMetadata` checks source and documentation values. `verifyArtifactMetadata` checks the generated `plugin.yml`, build information, jar name, and every class for Java 25 bytecode without preview features. All run as part of `check`.
+`build.sh` dynamically resolves installed Oracle JDK 25 and Oracle JDK 27 with macOS `java_home -F -v`, validates their major versions and Oracle vendor, and runs the installed Gradle on JDK 25. All plugin and test sources compile with JDK 25 and `--release 25`; all Java test tasks and their Java subprocesses use JDK 27. `verifyBuildJava` checks the actual toolchain paths. No JDKs are downloaded or silently substituted. Explicit installed-home overrides use `ONE_MB_BUILD_JAVA_HOME` and `ONE_MB_TEST_JAVA_HOME`; see the [build workflow](docs/installation.md#build). `verifyReleaseMetadata` checks source and documentation values. `verifyArtifactMetadata` checks the generated `plugin.yml`, build information, jar name, and every class for Java 25 bytecode without preview features. All run as part of `check`.
 
 After a successful `build`, `deployServers` copies the jar into `servers/Paper-26.3/plugins/`. Before copying, it renames active older MapHide jars in that folder by appending `.disabled`.
 
-Run `python3 scripts/smoke-test.py` after building to verify Paper startup, plugin loading, console commands, configuration reloads, placeholders, and clean shutdown on JDK 27. It uses an isolated copy of `servers/Paper-26.3` and saves logs under `servers/verification/`. See [runtime verification](docs/installation.md#runtime-verification) for coverage and [build 030 evidence](docs/verification/2026-09-25-paper-26.3.md) for results. Compile and test tasks use JDK 25.0.4.1; the maintained server launcher uses `/Library/Java/JavaVirtualMachines/jdk-27.jdk/Contents/Home`.
+Run `python3 scripts/smoke-test.py` after building to verify Paper startup, plugin loading, console commands, configuration reloads, placeholders, and clean shutdown on JDK 27. It uses an isolated copy of `servers/Paper-26.3` and saves logs under `servers/verification/`. See [runtime verification](docs/installation.md#runtime-verification) for coverage and [build 030 evidence](docs/verification/2026-09-25-paper-26.3.md) for results. Compilation uses Oracle JDK 25; Java tests and smoke servers use dynamically selected Oracle JDK 27. Set `ONE_MB_TEST_JAVA_HOME` or pass `--java-home` to select another installed Oracle 27 patch.
 
 ## Installation
 

@@ -18,16 +18,24 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - name: Set up JDK 25.0.4.1
+      - name: Set up Oracle JDK 27 for tests
+        id: test-java
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: 'oracle'
-          java-version: '25.0.4.1'
+          java-version: '27'
 
-      - name: Set up Gradle 9.6.1
+      - name: Set up Oracle JDK 25 for Gradle and compilation
+        id: build-java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: 'oracle'
+          java-version: '25'
+
+      - name: Set up Gradle 9.8.2
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
         with:
-          gradle-version: '9.6.1'
+          gradle-version: '9.8.2'
           cache-provider: basic
 
       - name: Read release build number
@@ -42,8 +50,11 @@ jobs:
           echo "value=$build_number" >> "$GITHUB_OUTPUT"
 
       - name: Build and verify plugin jar
+        env:
+          ONE_MB_BUILD_JAVA_HOME: ${{ steps.build-java.outputs.path }}
+          ONE_MB_TEST_JAVA_HOME: ${{ steps.test-java.outputs.path }}
         run: >-
-          gradle --no-daemon
+          ./build.sh --no-daemon
           -PreleaseBuildNumber=${{ steps.build-number.outputs.value }}
           clean build
 
