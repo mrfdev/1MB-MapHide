@@ -30,7 +30,7 @@ Check whether forced permissions are enabled:
 /bmpc status <player>
 ```
 
-If `forced-permissions.enabled` is `true`, `maphide.forcehide` or `maphide.forceshow` can override player and admin commands.
+Compare the player's force mode with the active permission nodes and conflict priority shown by `/bmpc debug status`. The default nodes are `maphide.forcehide` and `maphide.forceshow`. While forced permissions are enabled, an active force mode takes priority over player and admin commands.
 
 ## BlueMap Is Not Ready
 
@@ -42,9 +42,11 @@ Confirm PlaceholderAPI is installed and enabled, then run:
 
 ```text
 /bmpc debug placeholders
+/papi info maphide
+/papi parse <player> %maphide_state%
 ```
 
-MapHide only registers its expansion when PlaceholderAPI is present during plugin enable.
+MapHide provides its own expansion when it starts with PlaceholderAPI available. If the parse command returns the expected value, check how the consuming menu, scoreboard, or plugin reads the placeholder. [PlaceholderAPI troubleshooting](https://wiki.placeholderapi.com/faq/)
 
 ## Config Changes Did Not Apply
 

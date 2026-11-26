@@ -21,15 +21,15 @@ https://docs.1moreblock.com/custom-server-plugins/maphide/
 
 ## Changelog Summary
 
-Version `2.0.2`, build `031`, migrates development and compatibility testing to Paper 26.3 build 222 stable, with the published API `io.papermc.paper:paper-api:26.3.build.222-stable`. Java 25 bytecode, plugin identity, commands, permissions, configuration, and visibility behavior are preserved. Builds now leave existing servers untouched. Stable fixture provisioning checks official metadata and SHA-256; regression checks cover release pins, restart persistence, and optional/missing dependencies. See the [stable verification record](docs/verification/2026-10-25-paper-26.3-stable-222.md).
+Version `2.0.2`, build `032`, targets Paper 26.3 build 263 stable and the published API `io.papermc.paper:paper-api:26.3.build.263-stable`. The test fixture uses BlueMap 5.29. MapHide registers its expansion when PlaceholderAPI is enabled and logs the registration result. MapHide uses the Bukkit scheduler and declares Paper support. [Verification record](docs/verification/2026-11-26-paper-26.3-stable-263.md)
 
 ## Supported Servers
 
-This build targets Java 25 bytecode and the exact Paper API coordinate `io.papermc.paper:paper-api:26.3.build.222-stable`. Paper 26.3 build 222 stable is the maintained release-test server:
+This build targets Java 25 bytecode and the exact Paper API coordinate `io.papermc.paper:paper-api:26.3.build.263-stable`. Paper 26.3 build 263 stable is the maintained release-test server:
 
 | Server | BlueMap plugin |
 | --- | --- |
-| Paper 26.3 build 222 stable | `bluemap-5.27-paper.jar` (runtime 5.27, manifest 5.26) |
+| Paper 26.3 build 263 stable | `bluemap-5.29-paper.jar` |
 
 The generated plugin metadata declares `api-version: 26.3`, so this release is not intended for older Paper versions. Use an older MapHide build for Paper 26.1.2 or 1.21.11.
 
@@ -82,12 +82,14 @@ Important settings:
 | `/bmpc status <player>` | Shows visibility, forced state, world, coordinates, and timer. | `maphide.admin.status` |
 | `/bmpc config [page]` | Lists config values with pagination. | `maphide.admin.config` |
 | `/bmpc config set <key> <value>` | Updates a config key and reloads. | `maphide.admin.set` |
-| `/bmpc debug [page]` | Lists debug categories with pagination. | `maphide.admin.debug` |
+| `/bmpc debug [page]` | Lists debug categories with pagination. | `maphide.admin.debug` or any debug subcommand node |
 | `/bmpc debug status` | Shows server, plugin, and MapHide setting diagnostics. | `maphide.admin.debug.status` |
 | `/bmpc debug commands [page]` | Lists command routes and permission gates. | `maphide.admin.debug.commands` |
 | `/bmpc debug permissions [page]` | Lists permission nodes, defaults, descriptions, and sender state. | `maphide.admin.debug.permissions` |
 | `/bmpc debug placeholders [page]` | Lists PlaceholderAPI state and placeholders. | `maphide.admin.debug.placeholders` |
 | `/bmpc reload` | Reloads config and translations. | `maphide.admin.reload` |
+
+`maphide.admin.debug` also grants access to each debug subcommand.
 
 Player arguments support exact online player names. Selector arguments `@a`, `@p`, `@r`, and `@s` are available to admins.
 
@@ -139,28 +141,28 @@ Requirements:
 - Installed Gradle 9.8.0 or newer
 - Python 3.11 or newer on PATH
 - Installed Oracle JDK 25 for Gradle and compilation, and Oracle JDK 27 for automated tests
-- The exact Maven dependency `io.papermc.paper:paper-api:26.3.build.222-stable`
-- The Maven dependencies `de.bluecolored:bluemap-api:2.8.0` and `me.clip:placeholderapi:2.12.3`
+- The exact Maven dependency `io.papermc.paper:paper-api:26.3.build.263-stable`
+- The Maven dependencies `de.bluecolored:bluemap-api:2.8.2` and `me.clip:placeholderapi:2.12.3`
 
-A clean checkout builds without a local Paper server. The isolated `servers/Paper-26.3-stable-222` fixture is only needed for runtime verification and explicit development deployment.
+A clean checkout builds without a local Paper server. The isolated `servers/Paper-26.3-stable-263` fixture is only needed for runtime verification and explicit development deployment.
 
-Build release `031`:
+Build release `032`:
 
 ```sh
-./build.sh --no-daemon -PreleaseBuildNumber=031 clean build
+./build.sh --no-daemon -PreleaseBuildNumber=032 clean build
 ```
 
 Jars are named like:
 
 ```text
-1MB-BlueMap-MapHide-v2.0.2-031-j25-26.3.jar
+1MB-BlueMap-MapHide-v2.0.2-032-j25-26.3.jar
 ```
 
 The plugin version comes from `gradle.properties`. The three-digit build number is stored in `build-number.txt` and advances for a new unpinned jar build. Pin `releaseBuildNumber` when repeating a release build so retries reuse the intended number instead of incrementing it again. The Java and Paper parts of the jar name are target identifiers, not the semantic plugin version.
 
 `build.sh` dynamically resolves installed Oracle JDK 25 and Oracle JDK 27 with macOS `java_home -F -v`, validates their major versions and Oracle vendor, and runs the installed Gradle on JDK 25. All plugin and test sources compile with JDK 25 and `--release 25`; all Java test tasks and their Java subprocesses use JDK 27. `verifyBuildJava` checks the actual toolchain paths. No JDKs are downloaded or silently substituted. Explicit installed-home overrides use `ONE_MB_BUILD_JAVA_HOME` and `ONE_MB_TEST_JAVA_HOME`; see the [build workflow](docs/installation.md#build). `verifyReleaseMetadata` checks source and documentation values. `verifyArtifactMetadata` checks the generated `plugin.yml`, build information, jar name, and every class for Java 25 bytecode without preview features. All run as part of `check`.
 
-`build` does not deploy. When a development server is stopped, `deployServers` explicitly copies the artifact to `servers/Paper-26.3-stable-222/plugins/` and retains older MapHide JARs as disabled files. Dependency resolution is pinned in `gradle.lockfile`; refresh locks intentionally when changing dependencies.
+`build` does not deploy. When a development server is stopped, `deployServers` explicitly copies the artifact to `servers/Paper-26.3-stable-263/plugins/` and retains older MapHide JARs as disabled files. Dependency resolution is pinned in `gradle.lockfile`; refresh locks intentionally when changing dependencies.
 
 Prepare and test the stable fixture (see [setup details](docs/installation.md#runtime-verification)):
 
@@ -170,12 +172,14 @@ python3 scripts/paper_fixture.py prepare
 python3 scripts/smoke-test.py
 ```
 
-The preparer downloads only the checksum-pinned stable build. It reads accepted EULA files, BlueMap/PlaceholderAPI JARs, and runtime caches from the historical local fixture without importing its worlds, player records, or credentials. Each smoke run creates fresh localhost worlds under `servers/verification/` and exercises startup, shutdown, restart, configuration persistence, commands, and dependency failure paths on Oracle JDK 27. Use `ONE_MB_TEST_JAVA_HOME` or `--java-home` to select another installed Oracle 27 patch. Existing `servers/Paper-26.3` and `servers/Paper-26.2` remain historical fixtures.
+The preparer verifies checksum-pinned Paper, BlueMap, and PlaceholderAPI releases. It reads accepted terms and runtime caches from the source fixture. Each smoke run creates fresh localhost worlds under `servers/verification/` and exercises startup, shutdown, restart, configuration persistence, commands, and dependency failure paths on Oracle JDK 27. Use `ONE_MB_TEST_JAVA_HOME` or `--java-home` to select another installed Oracle 27 patch.
 
 ## Installation
 
+The build steps above produce the build-032 JAR. The `v2.0.2` Git tag identifies build 030, and the latest downloadable GitHub Release is `v2.0.0`. [Git tag](https://github.com/mrfdev/1MB-MapHide/tree/v2.0.2) · [GitHub Releases](https://github.com/mrfdev/1MB-MapHide/releases)
+
 1. Stop the Paper server.
-2. Put `1MB-BlueMap-MapHide-v2.0.2-031-j25-26.3.jar` in `plugins/`.
+2. Put `1MB-BlueMap-MapHide-v2.0.2-032-j25-26.3.jar` in `plugins/`.
 3. Make sure BlueMap is also in `plugins/`.
 4. Remove or disable old `BlueMapPlayerControl-*.jar` copies.
 5. Start the server.

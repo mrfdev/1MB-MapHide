@@ -16,12 +16,7 @@ Most players only need one command:
 
 Running `/map hide` toggles your marker. If you are visible, it hides you. If you are hidden, it shows you again.
 
-The legacy command is still available:
-
-```text
-/bmpc
-/bmpc toggle
-```
+If the server changes or disables the `/map hide` alias, use `/bmpc toggle`. `/bmpc` is a shortcut for the same action.
 
 Use `/bmpc info` or `/bmpc version` to see what MapHide is, which version is installed, useful starting commands, and the canonical docs link.
 
@@ -73,7 +68,7 @@ Some ranks or staff-managed states can force your marker to stay visible or hidd
 
 There are no rewards, currency costs, or item costs.
 
-By default there is no cooldown and no automatic timer. The server can optionally configure an auto-toggle timer. If enabled, using `/map hide` before the timer ends resets that timer.
+By default there is no cooldown and no automatic timer. If the server enables the timer, a self-toggle schedules another visibility change. Toggling again resets the timer. Use `/bmpc show` or `/bmpc hide` to set your marker explicitly and cancel the timer.
 
 ## Placeholders
 

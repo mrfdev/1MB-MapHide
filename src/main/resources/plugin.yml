@@ -1,7 +1,6 @@
 name: 1MB-MapHide
 version: '${version}'
 main: com.technicjelle.bluemapplayercontrol.BlueMapPlayerControl
-folia-supported: true
 api-version: '${paperTarget}'
 depend:
   - BlueMap

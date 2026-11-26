@@ -46,7 +46,7 @@ Then create:
 plugins/1MB-MapHide/Translations/Locale_FR.yml
 ```
 
-If the requested file is missing, the plugin falls back to `Locale_EN.yml`.
+If the requested file is missing, the plugin uses `Locale_EN.yml`. Missing messages in a locale file use the bundled English defaults.
 
 ## Alias Behavior
 
@@ -77,6 +77,10 @@ Admins can update known config keys with:
 The command saves the file and reloads MapHide. Unknown keys are rejected. Values are parsed as booleans, integers, or strings.
 
 Use `/bmpc config [page]` to list current values.
+
+## Auto-toggle timer
+
+`toggle-back-after-seconds` applies to player self-toggles. A successful explicit show or hide, an admin target action, or an enforced visibility change cancels the active timer for that player. Changing the setting through `/bmpc reload` applies to new timers. At expiry the player must be online and BlueMap must be ready for the marker to change.
 
 ## Forced Permissions
 

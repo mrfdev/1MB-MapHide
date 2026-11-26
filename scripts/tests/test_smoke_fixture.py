@@ -43,7 +43,9 @@ class SmokeFixtureTests(unittest.TestCase):
             artifact = Path(temp) / "maphide.jar"
             with zipfile.ZipFile(artifact, "w") as jar:
                 jar.writestr("config.yml", "language: EN\n")
-            with patch.object(smoke, "verify_server", return_value=source / "paper.jar"):
+            with (patch.object(smoke, "verify_server", return_value=source / "paper.jar"),
+                  patch.object(smoke, "verify_plugins", return_value=list(plugins.glob("*.jar"))),
+                  patch.object(smoke, "free_port", return_value=25565)):
                 smoke.prepare_server(source, destination, artifact, {})
             for name in ("world", "world_nether", "world_the_end", "config", "bukkit.yml", "spigot.yml"):
                 self.assertFalse((destination / name).exists(), name)

@@ -14,7 +14,7 @@ import threading
 import time
 import zipfile
 
-from paper_fixture import properties, sha256, verify_server
+from paper_fixture import properties, sha256, verify_plugins, verify_server
 from java_toolchains import resolve_jdk
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +54,7 @@ def prepare_server(source, destination, artifact, metadata):
     """Copy fixtures; never start or edit the maintained world's files."""
     config = properties((ROOT / "gradle.properties").read_text())
     paper = verify_server(source, config)
+    runtime_jars = verify_plugins(source, config)
     if not re.search(r"(?m)^eula=true$", (source / "eula.txt").read_text()):
         raise RuntimeError("The maintained test server must already have an accepted EULA")
     destination.mkdir(parents=True)
@@ -77,11 +78,8 @@ def prepare_server(source, destination, artifact, metadata):
         "".join(f"{key}={value}\n" for key, value in server_properties.items()))
     plugins = destination / "plugins"
     plugins.mkdir()
-    for pattern in ("bluemap-*.jar", "PlaceholderAPI-*.jar"):
-        matches = list((source / "plugins").glob(pattern))
-        if len(matches) != 1:
-            raise RuntimeError(f"Expected exactly one {pattern} in the maintained server")
-        shutil.copy2(matches[0], plugins / matches[0].name)
+    for jar in runtime_jars:
+        shutil.copy2(jar, plugins / jar.name)
     shutil.copy2(artifact, plugins / artifact.name)
     shutil.copytree(source / "plugins/BlueMap", plugins / "BlueMap")
     # Rendering/API checks do not require a second HTTP listener.

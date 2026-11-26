@@ -22,10 +22,14 @@ public final class BlueMapPlayerControl extends JavaPlugin {
 		registerCommand("bmpc");
 		Bukkit.getPluginManager().registerEvents(executor, this);
 
-		if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-			expansion = new MapHideExpansion(this, service);
-			expansion.register();
-			getLogger().info("PlaceholderAPI expansion registered");
+		if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+			MapHideExpansion candidate = new MapHideExpansion(this, service);
+			if (candidate.register()) {
+				expansion = candidate;
+				getLogger().info("PlaceholderAPI expansion registered");
+			} else {
+				getLogger().warning("Could not register the maphide PlaceholderAPI expansion");
+			}
 		}
 	}
 

@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 import shutil
+import tempfile
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,6 +53,29 @@ def fetch(url):
     return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": USER_AGENT}), timeout=60)
 
 
+def runtime_plugins(config):
+    bluemap = config["blueMapRuntimeVersion"]
+    placeholderapi = config["placeholderApiVersion"]
+    return {
+        f"bluemap-{bluemap}-paper.jar": (
+            "BlueMap-Minecraft/BlueMap", f"v{bluemap}", config["blueMapRuntimeSha256"]),
+        f"PlaceholderAPI-{placeholderapi}.jar": (
+            "PlaceholderAPI/PlaceholderAPI", placeholderapi, config["placeholderApiSha256"]),
+    }
+
+
+def verify_plugins(server, config):
+    plugins = server / "plugins"
+    pins = runtime_plugins(config)
+    jars = sorted([*plugins.glob("bluemap-*.jar"), *plugins.glob("PlaceholderAPI-*.jar")])
+    if {jar.name for jar in jars} != set(pins):
+        raise RuntimeError("Fixture BlueMap and PlaceholderAPI JARs do not match the release pins")
+    for jar in jars:
+        if jar.is_symlink() or sha256(jar) != pins[jar.name][2]:
+            raise RuntimeError(f"Fixture {jar.name} checksum mismatch")
+    return jars
+
+
 def prepare_server(source, destination, config):
     validate_pins(config)
     # Refuse existing destinations before downloading or copying anything.
@@ -61,12 +85,6 @@ def prepare_server(source, destination, config):
         raise RuntimeError("Source fixture must already have an accepted Minecraft EULA")
     if not re.search(r"(?m)^accept-download:\s*true\s*$", (source / "plugins/BlueMap/core.conf").read_text()):
         raise RuntimeError("Source fixture must already accept BlueMap's resource download terms")
-    plugins = []
-    for pattern in ("bluemap-*.jar", "PlaceholderAPI-*.jar"):
-        matches = list((source / "plugins").glob(pattern))
-        if len(matches) != 1:
-            raise RuntimeError(f"Expected exactly one {pattern} in the source fixture")
-        plugins.append(matches[0])
     url = f"https://fill.papermc.io/v3/projects/paper/versions/{config['paperTarget']}/builds/{config['paperBuild']}"
     with fetch(url) as response:
         build = json.load(response)
@@ -76,20 +94,45 @@ def prepare_server(source, destination, config):
         raise RuntimeError("Official Fill metadata does not match the stable release pins")
     if not download["url"].startswith("https://fill-data.papermc.io/"):
         raise RuntimeError("Unexpected Paper download host")
-    destination.mkdir(parents=True)
-    paper = destination / "paper.jar"
-    with fetch(download["url"]) as response, paper.open("xb") as output:
-        shutil.copyfileobj(response, output)
-    if paper.stat().st_size != download["size"] or sha256(paper) != config["paperSha256"]:
-        raise RuntimeError("Downloaded Paper JAR size/checksum mismatch")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".paper-fixture-", dir=destination.parent) as staging:
+        fixture = Path(staging) / destination.name
+        (fixture / "plugins").mkdir(parents=True)
+        paper = fixture / "paper.jar"
+        with fetch(download["url"]) as response, paper.open("xb") as output:
+            shutil.copyfileobj(response, output)
+        if paper.stat().st_size != download["size"] or sha256(paper) != config["paperSha256"]:
+            raise RuntimeError("Downloaded Paper JAR size/checksum mismatch")
+        for name, (repo, tag, digest) in runtime_plugins(config).items():
+            jar = fixture / "plugins" / name
+            cached = source / "plugins" / name
+            if cached.is_file() and sha256(cached) == digest:
+                shutil.copy2(cached, jar)
+            else:
+                asset = f"https://github.com/{repo}/releases/download/{tag}/{name}"
+                with fetch(asset) as response, jar.open("xb") as output:
+                    shutil.copyfileobj(response, output)
+        plugins = verify_plugins(fixture, config)
+        populate_server(source, fixture, config)
+        state = {key: config[key] for key in (
+            "paperTarget", "paperBuild", "paperChannel", "paperApiVersion", "paperSha256")}
+        state.update(jar="paper.jar", metadata_url=url, download=download,
+                     plugins={jar.name: sha256(jar) for jar in plugins})
+        (fixture / "paper-release.json").write_text(json.dumps(state, indent=2) + "\n")
+        verify_server(fixture, config)
+        if destination.exists() or destination.is_symlink():
+            raise RuntimeError(f"Refusing to replace an existing fixture: {destination}")
+        fixture.rename(destination)
+    print(f"Prepared {destination}; no server has been started")
+
+
+def populate_server(source, destination, config):
     shutil.copy2(source / "eula.txt", destination / "eula.txt")
     # Only runtime caches and plugin binaries; never worlds, users, credentials or plugin settings.
     for name in ("libraries", "versions", "cache"):
         if (source / name).is_dir():
             shutil.copytree(source / name, destination / name)
     (destination / "plugins/BlueMap").mkdir(parents=True)
-    for plugin in plugins:
-        shutil.copy2(plugin, destination / "plugins" / plugin.name)
     (destination / "plugins/BlueMap/core.conf").write_text(
         'accept-download: true\ndata: "bluemap"\nrender-thread-count: 1\nmetrics: false\n')
     (destination / "plugins/BlueMap/webserver.conf").write_text("enabled: false\n")
@@ -106,28 +149,22 @@ def prepare_server(source, destination, config):
         "online-mode=true\nlevel-name=world\n"
         "generate-structures=false\nview-distance=2\nsimulation-distance=2\n"
         "spawn-protection=0\npause-when-empty-seconds=-1\n")
-    state = {key: config[key] for key in (
-        "paperTarget", "paperBuild", "paperChannel", "paperApiVersion", "paperSha256")}
-    state.update(jar="paper.jar", metadata_url=url, download=download,
-                 plugins={p.name: sha256(p) for p in plugins})
-    (destination / "paper-release.json").write_text(json.dumps(state, indent=2) + "\n")
-    verify_server(destination, config)
-    print(f"Prepared {destination}; no server has been started")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("prepare", "verify"))
     parser.add_argument("--server", type=Path)
-    parser.add_argument("--fixtures", type=Path, default=ROOT / "servers/Paper-26.3")
+    parser.add_argument("--fixtures", type=Path, default=ROOT / "servers/Paper-26.3-stable-222")
     args = parser.parse_args()
     config = properties((ROOT / "gradle.properties").read_text())
     server = (args.server or ROOT / config["localPaperServerDir"]).absolute()
     if args.action == "prepare":
         prepare_server(args.fixtures.resolve(), server, config)
     else:
-        print(f"Verified Paper {config['paperTarget']} build {config['paperBuild']} STABLE: "
-              f"{verify_server(server, config)}")
+        paper = verify_server(server, config)
+        verify_plugins(server, config)
+        print(f"Verified Paper {config['paperTarget']} build {config['paperBuild']} STABLE: {paper}")
 
 
 if __name__ == "__main__":

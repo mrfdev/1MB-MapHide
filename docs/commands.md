@@ -25,10 +25,10 @@ Every `/bmpc` command first requires `maphide.player`. Subcommands then check th
 | `/bmpc show <player>` | Shows another online player. | `maphide.admin.show` |
 | `/bmpc hide <player>` | Hides another online player. | `maphide.admin.hide` |
 | `/bmpc status` | Shows plugin, build, BlueMap, Paper, Java, and target diagnostics. | `maphide.admin.status` |
-| `/bmpc status <player>` | Shows visibility, forced state, world, coordinates, and timer for a player. | `maphide.admin.status` |
+| `/bmpc status <player>` | Shows visibility, forced state, world, coordinates, and timer for an online player. | `maphide.admin.status` |
 | `/bmpc config [page]` | Lists config values with pagination. | `maphide.admin.config` |
 | `/bmpc config set <key> <value>` | Updates a known config key, saves comments/defaults, and reloads the plugin config. | `maphide.admin.set` |
-| `/bmpc debug [page]` | Lists debug categories. | `maphide.admin.debug` or any debug child node |
+| `/bmpc debug [page]` | Lists the debug categories available to the sender. | `maphide.admin.debug` or any debug child node |
 | `/bmpc debug status` | Shows server, plugin, and MapHide setting diagnostics. | `maphide.admin.debug.status` |
 | `/bmpc debug commands [page]` | Lists command routes and permission gates. | `maphide.admin.debug.commands` |
 | `/bmpc debug permissions [page]` | Lists permission nodes, defaults, descriptions, and sender state. | `maphide.admin.debug.permissions` |
@@ -36,6 +36,8 @@ Every `/bmpc` command first requires `maphide.player`. Subcommands then check th
 | `/bmpc reload` | Reloads config, translations, build info, and forced-permission tasks. | `maphide.admin.reload` |
 
 Player targets support exact online names. Admin target commands also accept Bukkit selectors such as `@a`, `@p`, `@r`, and `@s` where the server permits them.
+
+The `maphide.admin.debug` parent also allows every debug subcommand listed above.
 
 ## Console Behavior
 

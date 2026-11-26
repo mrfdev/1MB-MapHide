@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from paper_fixture import prepare_server, properties, sha256, validate_pins, verify_server
+from paper_fixture import prepare_server, properties, sha256, validate_pins, verify_plugins, verify_server
 
 
 class StableFixtureTests(unittest.TestCase):
@@ -96,6 +96,24 @@ class StableFixtureTests(unittest.TestCase):
                 prepare_server(self.server, destination, self.config)
             network.assert_not_called()
         self.assertFalse(destination.exists())
+
+    def test_fixture_runtime_plugins_require_exact_names_and_checksums(self):
+        plugins = self.server / "plugins"
+        plugins.mkdir()
+        bluemap = plugins / f"bluemap-{self.config['blueMapRuntimeVersion']}-paper.jar"
+        papi = plugins / f"PlaceholderAPI-{self.config['placeholderApiVersion']}.jar"
+        bluemap.write_bytes(b"bluemap")
+        papi.write_bytes(b"papi")
+        self.config.update(blueMapRuntimeSha256=sha256(bluemap), placeholderApiSha256=sha256(papi))
+        self.assertCountEqual((bluemap, papi), verify_plugins(self.server, self.config))
+        duplicate = plugins / "bluemap-old.jar"
+        duplicate.touch()
+        with self.assertRaisesRegex(RuntimeError, "do not match the release pins"):
+            verify_plugins(self.server, self.config)
+        duplicate.unlink()
+        papi.write_bytes(b"changed")
+        with self.assertRaisesRegex(RuntimeError, "checksum mismatch"):
+            verify_plugins(self.server, self.config)
 
 
 if __name__ == "__main__":

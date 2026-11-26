@@ -36,7 +36,7 @@ If a player has both force permissions, `forced-permissions.conflict-priority` d
 | `maphide.admin.config` | `op` | Allows `/bmpc config`. |
 | `maphide.admin.set` | `op` | Allows `/bmpc config set <key> <value>`. |
 | `maphide.admin.reload` | `op` | Allows `/bmpc reload`. |
-| `maphide.admin.debug` | `op` | Parent debug permission. |
+| `maphide.admin.debug` | `op` | Allows `/bmpc debug` and all debug subcommands. |
 | `maphide.admin.debug.status` | `op` | Allows `/bmpc debug status`. |
 | `maphide.admin.debug.commands` | `op` | Allows `/bmpc debug commands`. |
 | `maphide.admin.debug.permissions` | `op` | Allows `/bmpc debug permissions`. |
@@ -45,5 +45,6 @@ If a player has both force permissions, `forced-permissions.conflict-priority` d
 ## Permission Checks To Remember
 
 - `/map hide` requires both `maphide.player` and `maphide.player.toggle`.
-- `/bmpc status` is an admin command, but `/bmpc` still checks `maphide.player` before dispatching subcommands.
+- Every `/bmpc` route requires `maphide.player`, including admin commands.
+- A single debug child permission also allows the debug menu, which shows the sender's available categories.
 - Forced permissions override both player commands and admin visibility changes while enabled.
